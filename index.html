@@ -9,6 +9,8 @@ window.PMTP = {
   SUPABASE_URL:     'https://vfvrdqtpntbrzbnkpxuc.supabase.co',
   SUPABASE_KEY:     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmdnJkcXRwbnRicnpibmtweHVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNDk1MDAsImV4cCI6MjA5MDcyNTUwMH0.HVKIczPpqds6FL0PpJydWp1681meDplt2Oj46zEhd2Q',
   GOOGLE_CLIENT_ID: '418296313205-r3n6rnja7a5jonhup9d7vaqv1id966it.apps.googleusercontent.com',
+  RECONCILIATION_FORM: 'https://docs.google.com/forms/d/e/1FAIpQLSeqTDLmDrTVovpl5VIkZRQTRbsHJL73kAAY1t0UjsIGoSMb_Q/viewform?usp=header',
+  KNOWLEDGE_BASE_URL: '', // ← AGENT-SPECIFIC: replace per agent
 };
 </script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -134,6 +136,7 @@ function createSB(url,key){
     upsert:(body,opts={})=>dbReq('POST',table,[],[].concat(body),'resolution=merge-duplicates,return=representation'),
     update:(body)=>({eq:(c,v)=>dbReq('PATCH',table,[c+'=eq.'+encodeURIComponent(v)],body,'return=representation')}),
     delete:()=>({eq:(c,v)=>dbReq('DELETE',table,[c+'=eq.'+encodeURIComponent(v)],null,'')}),
+    insert:(body)=>dbReq('POST',table,[],[].concat(body),'return=representation'),
   });
   return{auth,from};
 }
@@ -194,10 +197,10 @@ const MODS=[
   ]},
   {id:'fitTracker',nav:'FIT Trip Tracker',label:'FIT Trip Tracker',icon:'📊',accent:'#27ae60',fields:[],external:'https://docs.google.com/spreadsheets/d/11iTKoAtr6EEo9yqMYUSeTNFCEKkRsTfb/copy'},
   {id:'admin',nav:'Admin Tasks',label:'Admin Jobs',short:'Admin Jobs',icon:'✅',accent:T.green,fields:[{k:'task',l:'Task',t:'text',req:true},{k:'priority',l:'Priority',t:'select',opts:['High','Medium','Low']},{k:'dueDate',l:'Due Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
-  {id:'checklists',nav:'Booking Checklists',label:'Booking Checklists',short:'Checklists',icon:'📝',accent:'#7b68ee',fields:[]}
-,
+  {id:'checklists',nav:'Booking Checklists',label:'Booking Checklists',short:'Checklists',icon:'📝',accent:'#7b68ee',fields:[]},
   {id:'calendar',nav:'Calendar / Agenda',label:'Calendar / Agenda',icon:'📅',accent:'#2e8b8b',fields:[]},
-  {id:'commissions',nav:'My Commissions',label:'My Commissions',icon:'💰',accent:'#c9a84c',fields:[]}];
+  {id:'commissions',nav:'My Commissions',label:'My Commissions',icon:'💰',accent:'#c9a84c',fields:[]}
+];
 
 /* ── Helpers ── */
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -207,7 +210,7 @@ const getDK=mod=>mod.fields.find(f=>f.k==='dueDate')?.k||mod.fields.find(f=>f.k=
 const isOD=(item,mod)=>{const dk=getDK(mod);return dk&&item[dk]&&daysTo(item[dk])<0;};
 const isUG=(item,mod)=>{const dk=getDK(mod);if(!dk||!item[dk])return false;const n=daysTo(item[dk]);const threshold=mod.id==='finalPayments'?7:3;return n!==null&&n>=0&&n<=threshold;};
 
-/* ── Shared small components (outside App) ── */
+/* ── Shared small components ── */
 function DueBadge({d}){
   if(!d)return null;
   const n=daysTo(d);
@@ -216,7 +219,7 @@ function DueBadge({d}){
   else if(n===0){bg=T.redPale;col=T.red;lbl='DUE TODAY';}
   else if(n<=3){bg=T.orangePale;col=T.orange;lbl='Due in '+n+'d';}
   else if(n<=7){bg=T.goldPale;col=T.goldDeep;lbl=fmtDate(d);}
-  else{bg=T.tealPale;col='#4a7a7c';lbl=fmtDate(d);}
+  else{bg=T.tealPale;col:'#4a7a7c';lbl=fmtDate(d);}
   return <span style={{background:bg,color:col,fontSize:10,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',padding:'3px 9px',borderRadius:4,whiteSpace:'nowrap'}}>{lbl}</span>;
 }
 
@@ -227,7 +230,7 @@ function Toast({msg,type,onDone}){
   </div>;
 }
 
-/* ── Auth Screen (outside App) ── */
+/* ── Auth Screen ── */
 function AuthScreen({onAuth}){
   const[mode,setMode]=useState('login');
   const[email,setEmail]=useState('');
@@ -281,7 +284,7 @@ function AuthScreen({onAuth}){
   );
 }
 
-/* ── Add/Edit Modal (outside App) ── */
+/* ── Add/Edit Modal ── */
 function AddModal({modal,setModal,form,setForm,formErr,setFormErr,onSave}){
   if(!modal)return null;
   const m=MODS.find(x=>x.id===modal.mid);
@@ -319,7 +322,7 @@ function AddModal({modal,setModal,form,setForm,formErr,setFormErr,onSave}){
   );
 }
 
-/* ── Item Card (outside App) ── */
+/* ── Item Card ── */
 function ItemCard({item,mid,highlightId,onEdit,onToggle,onDelete,onCal,onMove,googleTok,calLoading}){
   const m=MODS.find(x=>x.id===mid);
   const f0=m.fields[0],f1=m.fields[1];
@@ -330,12 +333,7 @@ function ItemCard({item,mid,highlightId,onEdit,onToggle,onDelete,onCal,onMove,go
   const isHL=highlightId===item.id;
   const cardRef=React.useRef(null);
   React.useEffect(()=>{
-    if(isHL){
-      const t=setTimeout(()=>{
-        if(cardRef.current){cardRef.current.scrollIntoView({behavior:'smooth',block:'center'});}
-      },150);
-      return()=>clearTimeout(t);
-    }
+    if(isHL){const t=setTimeout(()=>{if(cardRef.current){cardRef.current.scrollIntoView({behavior:'smooth',block:'center'});}},150);return()=>clearTimeout(t);}
   },[isHL]);
   return(
     <div ref={cardRef} style={{background:isHL?'#f0f9f9':T.white,border:'1px solid '+(isHL?'#2e8b8b':overdue?T.red:urgent?'#f0a070':T.border),borderRadius:10,boxShadow:overdue?'0 3px 16px rgba(192,57,43,0.16)':urgent?'0 3px 14px rgba(212,132,62,0.12)':'0 2px 10px rgba(27,45,58,0.06)',display:'flex',overflow:'hidden',marginBottom:0}}>
@@ -385,141 +383,77 @@ function ItemCard({item,mid,highlightId,onEdit,onToggle,onDelete,onCal,onMove,go
 }
 
 /* ── Booking Checklist View ── */
-function ChecklistView({session, showToast, moveItem}){
-  const[lists, setLists]=React.useState([]);
-  const[showArchived, setShowArchived]=React.useState(false);
-  const[adding, setAdding]=React.useState(false);
-  const[newClient, setNewClient]=React.useState('');
-  const[newTrip, setNewTrip]=React.useState('');
-  const[customInputs, setCustomInputs]=React.useState({});
-  const[loaded, setLoaded]=React.useState(false);
-  const[collapsed, setCollapsed]=React.useState({});
+function ChecklistView({session,showToast}){
+  const[lists,setLists]=React.useState([]);
+  const[showArchived,setShowArchived]=React.useState(false);
+  const[adding,setAdding]=React.useState(false);
+  const[newClient,setNewClient]=React.useState('');
+  const[newTrip,setNewTrip]=React.useState('');
+  const[customInputs,setCustomInputs]=React.useState({});
+  const[loaded,setLoaded]=React.useState(false);
+  const[collapsed,setCollapsed]=React.useState({});
   const toggleCollapse=(id)=>setCollapsed(p=>({...p,[id]:!p[id]}));
-
-  const DEFAULT_STEPS = ['Verify you booked the correct hotel, flights, dates, room types, etc. — ALWAYS TRIPLE CHECK YOUR WORK', 'Create Terms & Conditions for the invoice (if needed)', 'Create and send invoice via Travel Joy', 'Check if client needs a visa or other required travel documents', 'Add trip & commission to my personal commission tracker', 'Submit sale in Legato', 'Submit sale in Travel Joy', 'Save client\'s invoice/reservation in Travel Joy under Files', 'Add all travelers in Travel Joy including DOB and all info — so you have this next time client books', 'Create itinerary for client', 'Create guides for client (if needed)', 'Create email folder for client and save any emailed reservations', 'Mark client\'s invoice as paid in Travel Joy', 'Book extras (excursions, transfers, etc.) if needed', 'Make a hotel request if needed', 'Research and book hotel transfers if needed'];
-
-  React.useEffect(()=>{
-    if(!session)return;
-    loadLists();
-  },[session]);
-
+  const DEFAULT_STEPS=['Verify you booked the correct hotel, flights, dates, room types, etc. — ALWAYS TRIPLE CHECK YOUR WORK','Create Terms & Conditions for the invoice (if needed)','Create and send invoice via Travel Joy','Check if client needs a visa or other required travel documents','Add trip & commission to my personal commission tracker','Submit sale in Legato','Submit sale in Travel Joy','Save client\'s invoice/reservation in Travel Joy under Files','Add all travelers in Travel Joy including DOB and all info — so you have this next time client books','Create itinerary for client','Create guides for client (if needed)','Create email folder for client and save any emailed reservations','Mark client\'s invoice as paid in Travel Joy','Book extras (excursions, transfers, etc.) if needed','Make a hotel request if needed','Research and book hotel transfers if needed'];
+  React.useEffect(()=>{if(!session)return;loadLists();},[session]);
   async function loadLists(){
     const{data,error}=await sb.from('booking_checklists').select('*').order('created_at',{ascending:false});
-    if(!error&&data) setLists(data.map(r=>({...r.list_data,id:r.id,archived:r.archived})));
+    if(!error&&data)setLists(data.map(r=>({...r.list_data,id:r.id,archived:r.archived})));
     setLoaded(true);
   }
-
   async function saveList(list){
     const{id,archived,...list_data}=list;
-    await sb.from('booking_checklists').upsert({id,user_id:session.user.id,list_data,archived:archived||false},{onConflict:'id'});
+    await sb.from('booking_checklists').upsert({id,user_id:session.user.id,list_data,archived:archived||false});
   }
-
   async function createChecklist(){
     if(!newClient.trim())return;
     const steps=DEFAULT_STEPS.map((text,i)=>({id:'s'+i,text,done:false,custom:false}));
     const list={id:uid(),client:newClient.trim(),trip:newTrip.trim(),steps,createdAt:new Date().toISOString(),archived:false};
-    const updated=[list,...lists];
-    setLists(updated);
+    setLists(u=>[list,...u]);
     await saveList(list);
     setNewClient('');setNewTrip('');setAdding(false);
     showToast('Checklist created for '+list.client+'.');
   }
-
-  async function toggleStep(listId, stepId){
-    const updated=lists.map(l=>{
-      if(l.id!==listId)return l;
-      return{...l,steps:l.steps.map(s=>s.id===stepId?{...s,done:!s.done}:s)};
-    });
+  async function toggleStep(listId,stepId){
+    const updated=lists.map(l=>l.id!==listId?l:{...l,steps:l.steps.map(s=>s.id===stepId?{...s,done:!s.done}:s)});
     setLists(updated);
-    const list=updated.find(l=>l.id===listId);
-    await saveList(list);
+    await saveList(updated.find(l=>l.id===listId));
   }
-
   async function addCustomStep(listId){
-    const text=(customInputs[listId]||'').trim();
-    if(!text)return;
-    const updated=lists.map(l=>{
-      if(l.id!==listId)return l;
-      const newStep={id:'c'+Date.now(),text,done:false,custom:true};
-      return{...l,steps:[...l.steps,newStep]};
-    });
-    setLists(updated);
-    setCustomInputs(p=>({...p,[listId]:''}));
-    const list=updated.find(l=>l.id===listId);
-    await saveList(list);
-    showToast('Custom step added.');
+    const text=(customInputs[listId]||'').trim();if(!text)return;
+    const updated=lists.map(l=>l.id!==listId?l:{...l,steps:[...l.steps,{id:'c'+Date.now(),text,done:false,custom:true}]});
+    setLists(updated);setCustomInputs(p=>({...p,[listId]:''}));
+    await saveList(updated.find(l=>l.id===listId));showToast('Custom step added.');
   }
-
   async function archiveList(listId){
     const updated=lists.map(l=>l.id===listId?{...l,archived:!l.archived}:l);
-    setLists(updated);
-    const list=updated.find(l=>l.id===listId);
-    await saveList(list);
-    showToast(list.archived?'Checklist restored.':'Checklist archived.');
+    setLists(updated);const list=updated.find(l=>l.id===listId);
+    await saveList(list);showToast(list.archived?'Checklist restored.':'Checklist archived.');
   }
-
   async function deleteChecklist(listId){
     await sb.from('booking_checklists').delete().eq('id',listId);
-    setLists(p=>p.filter(l=>l.id!==listId));
-    showToast('Checklist deleted.');
+    setLists(p=>p.filter(l=>l.id!==listId));showToast('Checklist deleted.');
   }
-
+  async function sendToHPTrip(list,step){
+    const entry={id:uid(),done:false,client:list.client,trip:list.trip||'',action:'[Checklist] '+step.text,notes:'From booking checklist — '+list.client+(list.trip?' / '+list.trip:'')};
+    await sb.from('dashboard_items').upsert({id:entry.id,user_id:session.user.id,module_id:'hpTrips',item_data:entry,done:false});
+    showToast('Sent to High Priority Trip Actions.');
+  }
   async function sendToHotelRequest(list){
-    const entry={
-      id:uid(),done:false,
-      client:list.client,
-      hotel:'',
-      destination:'',
-      notes:'From booking checklist — '+list.client+(list.trip?' / '+list.trip:''),
-      status:'Pending',
-    };
-    const{error}=await sb.from('dashboard_items').upsert({
-      id:entry.id,user_id:session.user.id,module_id:'hotelRequests',item_data:entry,done:false
-    });
-    if(!error) showToast('Sent to Hotel Requests — fill in the details there.');
-    else showToast('Could not send. Try again.','err');
+    const entry={id:uid(),done:false,client:list.client,hotel:'',destination:'',notes:'From booking checklist — '+list.client+(list.trip?' / '+list.trip:''),status:'Pending'};
+    await sb.from('dashboard_items').upsert({id:entry.id,user_id:session.user.id,module_id:'hotelRequests',item_data:entry,done:false});
+    showToast('Sent to Hotel Requests.');
   }
-
   async function sendToComponents(list){
-    const entry={
-      id:uid(),done:false,
-      client:list.client,
-      trip:list.trip||'',
-      components:'Excursions / transfers / extras needed',
-      notes:'From booking checklist — '+list.client+(list.trip?' / '+list.trip:''),
-    };
-    const{error}=await sb.from('dashboard_items').upsert({
-      id:entry.id,user_id:session.user.id,module_id:'components',item_data:entry,done:false
-    });
-    if(!error) showToast('Sent to Trip Needs Components Added.');
-    else showToast('Could not send. Try again.','err');
+    const entry={id:uid(),done:false,client:list.client,trip:list.trip||'',components:'Excursions / transfers / extras needed',notes:'From booking checklist — '+list.client+(list.trip?' / '+list.trip:'')};
+    await sb.from('dashboard_items').upsert({id:entry.id,user_id:session.user.id,module_id:'components',item_data:entry,done:false});
+    showToast('Sent to Trip Needs Components Added.');
   }
-
-  async function sendToHPTrip(list, step){
-    const entry={
-      id:uid(),done:false,
-      client:list.client,
-      trip:list.trip||'',
-      action:'[Checklist] '+step.text,
-      notes:'From booking checklist — '+list.client+(list.trip?' / '+list.trip:''),
-    };
-    const{error}=await sb.from('dashboard_items').upsert({
-      id:entry.id,user_id:session.user.id,module_id:'hpTrips',item_data:entry,done:false
-    });
-    if(!error) showToast('Sent to High Priority Trip Actions.');
-    else showToast('Could not send. Try again.','err');
-  }
-
   const active=lists.filter(l=>!l.archived);
   const archived=lists.filter(l=>l.archived);
-
   const iStyle={width:'100%',padding:'8px 10px',border:'1px solid #ede8df',borderRadius:6,fontSize:13,color:'#1b2d3a',background:'#faf7f2',outline:'none'};
-
-  if(!loaded) return <div style={{padding:'40px',textAlign:'center',color:'#9ab0bb',fontSize:13}}>Loading checklists...</div>;
-
+  if(!loaded)return<div style={{padding:'40px',textAlign:'center',color:'#9ab0bb',fontSize:13}}>Loading checklists...</div>;
   return(
     <div style={{padding:'24px 28px',overflowY:'auto',height:'100%'}}>
-      {/* Header */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:22}}>
         <div style={{display:'flex',alignItems:'center',gap:13}}>
           <div style={{width:4,height:38,background:'linear-gradient(to bottom,#7b68ee,#75afb1)',borderRadius:2}}/>
@@ -528,40 +462,17 @@ function ChecklistView({session, showToast, moveItem}){
             <div style={{fontSize:19,fontWeight:700,color:'#1b2d3a',letterSpacing:'0.04em'}}>📝 Booking Checklists</div>
           </div>
         </div>
-        <button onClick={()=>setAdding(v=>!v)} style={{...btn,padding:'9px 20px',fontSize:11,background:'linear-gradient(135deg,#1b2d3a,#243747)',border:'1px solid #c9a84c',color:'#e2c97e'}}>
-          {adding?'Cancel':'+ New Checklist'}
-        </button>
+        <button onClick={()=>setAdding(v=>!v)} style={{...btn,padding:'9px 20px',fontSize:11,background:'linear-gradient(135deg,#1b2d3a,#243747)',border:'1px solid #c9a84c',color:'#e2c97e'}}>{adding?'Cancel':'+ New Checklist'}</button>
       </div>
-
-      {/* New checklist form */}
-      {adding&&(
-        <div style={{background:'#ffffff',border:'1px solid #c9a84c',borderRadius:10,padding:'16px 18px',marginBottom:16,boxShadow:'0 2px 12px rgba(27,45,58,0.08)'}}>
-          <div style={{fontSize:10,letterSpacing:'0.16em',color:'#5a7a8a',textTransform:'uppercase',marginBottom:12}}>New Checklist</div>
-          <div style={{display:'flex',gap:10,marginBottom:10}}>
-            <div style={{flex:1}}>
-              <label style={{display:'block',fontSize:10,letterSpacing:'0.14em',color:'#5a7a8a',textTransform:'uppercase',marginBottom:5}}>Client Name *</label>
-              <input value={newClient} onChange={e=>setNewClient(e.target.value)} placeholder="Client name..." style={iStyle}/>
-            </div>
-            <div style={{flex:1}}>
-              <label style={{display:'block',fontSize:10,letterSpacing:'0.14em',color:'#5a7a8a',textTransform:'uppercase',marginBottom:5}}>Trip / Booking #</label>
-              <input value={newTrip} onChange={e=>setNewTrip(e.target.value)} placeholder="Trip or booking..." style={iStyle}/>
-            </div>
-          </div>
-          <button onClick={createChecklist} style={{...btn,padding:'9px 20px',fontSize:11,background:'linear-gradient(135deg,#1b2d3a,#243747)',border:'1px solid #c9a84c',color:'#e2c97e'}}>
-            Create Checklist →
-          </button>
+      {adding&&<div style={{background:'#ffffff',border:'1px solid #c9a84c',borderRadius:10,padding:'16px 18px',marginBottom:16,boxShadow:'0 2px 12px rgba(27,45,58,0.08)'}}>
+        <div style={{fontSize:10,letterSpacing:'0.16em',color:'#5a7a8a',textTransform:'uppercase',marginBottom:12}}>New Checklist</div>
+        <div style={{display:'flex',gap:10,marginBottom:10}}>
+          <div style={{flex:1}}><label style={{display:'block',fontSize:10,letterSpacing:'0.14em',color:'#5a7a8a',textTransform:'uppercase',marginBottom:5}}>Client Name *</label><input value={newClient} onChange={e=>setNewClient(e.target.value)} placeholder="Client name..." style={iStyle}/></div>
+          <div style={{flex:1}}><label style={{display:'block',fontSize:10,letterSpacing:'0.14em',color:'#5a7a8a',textTransform:'uppercase',marginBottom:5}}>Trip / Booking #</label><input value={newTrip} onChange={e=>setNewTrip(e.target.value)} placeholder="Trip or booking..." style={iStyle}/></div>
         </div>
-      )}
-
-      {/* Empty state */}
-      {active.length===0&&!adding&&(
-        <div style={{textAlign:'center',padding:'64px 0',color:'#9ab0bb'}}>
-          <div style={{fontSize:34,marginBottom:14}}>📝</div>
-          <div style={{fontSize:13,letterSpacing:'0.1em'}}>No active checklists — create one for your next booking.</div>
-        </div>
-      )}
-
-      {/* Active checklists */}
+        <button onClick={createChecklist} style={{...btn,padding:'9px 20px',fontSize:11,background:'linear-gradient(135deg,#1b2d3a,#243747)',border:'1px solid #c9a84c',color:'#e2c97e'}}>Create Checklist →</button>
+      </div>}
+      {active.length===0&&!adding&&<div style={{textAlign:'center',padding:'64px 0',color:'#9ab0bb'}}><div style={{fontSize:34,marginBottom:14}}>📝</div><div style={{fontSize:13,letterSpacing:'0.1em'}}>No active checklists — create one for your next booking.</div></div>}
       <div style={{display:'flex',flexDirection:'column',gap:14}}>
         {active.map(list=>{
           const done=list.steps.filter(s=>s.done).length;
@@ -569,56 +480,33 @@ function ChecklistView({session, showToast, moveItem}){
           const pct=total?Math.round(done/total*100):0;
           return(
             <div key={list.id} style={{background:'#ffffff',border:'1px solid #ede8df',borderRadius:12,boxShadow:'0 2px 12px rgba(27,45,58,0.06)',overflow:'hidden'}}>
-              {/* Checklist header */}
               <div style={{padding:'14px 18px',borderBottom:'1px solid #ede8df',background:'#faf7f2'}}>
                 <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:10}}>
-                  <div>
-                    <div style={{fontWeight:700,fontSize:15,color:'#1b2d3a',marginBottom:3}}>{list.client}</div>
-                    {list.trip&&<div style={{fontSize:12,color:'#5a7a8a',background:'#ede8df',padding:'2px 8px',borderRadius:4,display:'inline-block'}}>{list.trip}</div>}
-                  </div>
-                  <div style={{textAlign:'right'}}>
-                    <div style={{fontSize:20,fontWeight:700,color:pct===100?'#5a9e82':'#1b2d3a'}}>{done}/{total}</div>
-                    <div style={{fontSize:11,color:'#9ab0bb'}}>completed</div>
-                  </div>
+                  <div><div style={{fontWeight:700,fontSize:15,color:'#1b2d3a',marginBottom:3}}>{list.client}</div>{list.trip&&<div style={{fontSize:12,color:'#5a7a8a',background:'#ede8df',padding:'2px 8px',borderRadius:4,display:'inline-block'}}>{list.trip}</div>}</div>
+                  <div style={{textAlign:'right'}}><div style={{fontSize:20,fontWeight:700,color:pct===100?'#5a9e82':'#1b2d3a'}}>{done}/{total}</div><div style={{fontSize:11,color:'#9ab0bb'}}>completed</div></div>
                 </div>
-                <div style={{background:'#ede8df',borderRadius:4,height:5,overflow:'hidden'}}>
-                  <div style={{background:pct===100?'#5a9e82':'#c9a84c',width:pct+'%',height:'100%',borderRadius:4,transition:'width 0.3s'}}/>
-                </div>
+                <div style={{background:'#ede8df',borderRadius:4,height:5,overflow:'hidden'}}><div style={{background:pct===100?'#5a9e82':'#c9a84c',width:pct+'%',height:'100%',borderRadius:4,transition:'width 0.3s'}}/></div>
                 <div style={{fontSize:11,color:'#9ab0bb',marginTop:5}}>{pct}% complete</div>
-                <button onClick={()=>toggleCollapse(list.id)} style={{...btn,marginTop:8,padding:'4px 12px',fontSize:10,background:'transparent',border:'1px solid #ede8df',color:'#5a7a8a'}}>
-                  {collapsed[list.id]?'▼ Show Steps':'▲ Collapse'}
-                </button>
+                <button onClick={()=>toggleCollapse(list.id)} style={{...btn,marginTop:8,padding:'4px 12px',fontSize:10,background:'transparent',border:'1px solid #ede8df',color:'#5a7a8a'}}>{collapsed[list.id]?'▼ Show Steps':'▲ Collapse'}</button>
               </div>
-
-              {/* Steps */}
               <div style={{display:collapsed[list.id]?'none':'block'}}>
                 {list.steps.map((step,idx)=>(
                   <div key={step.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 16px',borderBottom:'1px solid #f5f3ef',opacity:step.done?0.5:1,background:step.done?'#fafaf8':'#ffffff'}}>
                     <button onClick={()=>toggleStep(list.id,step.id)} style={{width:20,height:20,borderRadius:'50%',border:step.done?'none':'1.5px solid #c9a84c',background:step.done?'#5a9e82':'transparent',cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',padding:0}}>
                       {step.done&&<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     </button>
-                    <span style={{fontSize:13,color:'#1b2d3a',flex:1,textDecoration:step.done?'line-through':'none',lineHeight:1.5}}>
-                      {idx===0&&!step.done&&<span style={{color:'#c0392b',fontWeight:700,marginRight:4}}>⚠</span>}
-                      {step.text}
-                    </span>
+                    <span style={{fontSize:13,color:'#1b2d3a',flex:1,textDecoration:step.done?'line-through':'none',lineHeight:1.5}}>{idx===0&&!step.done&&<span style={{color:'#c0392b',fontWeight:700,marginRight:4}}>⚠</span>}{step.text}</span>
                     {step.custom&&<span style={{fontSize:10,padding:'2px 6px',borderRadius:4,background:'#e8f5f5',color:'#75afb1',letterSpacing:'0.1em',textTransform:'uppercase',flexShrink:0}}>custom</span>}
                     {!step.done&&<button onClick={()=>sendToHPTrip(list,step)} style={{...btn,padding:'3px 8px',fontSize:10,background:'rgba(192,57,43,0.1)',border:'1px solid #c0392b',color:'#c0392b',flexShrink:0,letterSpacing:'0.08em'}}>→ HP Trip</button>}
                     {!step.done&&(step.text.includes('hotel request')||step.text.includes('transfers'))&&<button onClick={()=>sendToHotelRequest(list)} style={{...btn,padding:'3px 8px',fontSize:10,background:'rgba(230,126,34,0.1)',border:'1px solid #e67e22',color:'#e67e22',flexShrink:0,letterSpacing:'0.08em'}}>→ Hotel Req</button>}
-                    {!step.done&&step.text.includes('transfers')&&<button onClick={()=>sendToHPTrip(list,step)} style={{...btn,padding:'3px 8px',fontSize:10,background:'rgba(192,57,43,0.1)',border:'1px solid #c0392b',color:'#c0392b',flexShrink:0,letterSpacing:'0.08em'}}>→ HP Trip</button>}
                     {!step.done&&step.text.includes('extras')&&<button onClick={()=>sendToComponents(list)} style={{...btn,padding:'3px 8px',fontSize:10,background:'rgba(154,205,208,0.2)',border:'1px solid #9acdd0',color:'#5a8a8c',flexShrink:0,letterSpacing:'0.08em'}}>→ Components</button>}
                   </div>
                 ))}
-
-                {/* Add custom step */}
                 <div style={{padding:'10px 16px',display:'flex',gap:8,alignItems:'center',borderTop:'1px solid #f5f3ef'}}>
-                  <input value={customInputs[list.id]||''} onChange={e=>setCustomInputs(p=>({...p,[list.id]:e.target.value}))}
-                    onKeyDown={e=>e.key==='Enter'&&addCustomStep(list.id)}
-                    placeholder="Add a custom step..." style={{...iStyle,flex:1,padding:'6px 10px'}}/>
+                  <input value={customInputs[list.id]||''} onChange={e=>setCustomInputs(p=>({...p,[list.id]:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&addCustomStep(list.id)} placeholder="Add a custom step..." style={{...iStyle,flex:1,padding:'6px 10px'}}/>
                   <button onClick={()=>addCustomStep(list.id)} style={{...btn,padding:'6px 12px',fontSize:10,background:'transparent',border:'1px solid #ede8df',color:'#5a7a8a'}}>+ Add</button>
                 </div>
               </div>
-
-              {/* Footer actions */}
               <div style={{padding:'10px 16px',borderTop:'1px solid #ede8df',display:'flex',gap:8,justifyContent:'flex-end',background:'#faf7f2'}}>
                 {pct===100&&<span style={{fontSize:11,color:'#5a9e82',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',alignSelf:'center',marginRight:'auto'}}>✓ All Done!</span>}
                 <button onClick={()=>archiveList(list.id)} style={{...btn,padding:'5px 12px',fontSize:10,background:'transparent',border:'1px solid #ede8df',color:'#5a7a8a'}}>Archive</button>
@@ -628,34 +516,18 @@ function ChecklistView({session, showToast, moveItem}){
           );
         })}
       </div>
-
-      {/* Archived */}
-      {archived.length>0&&(
-        <div style={{marginTop:24}}>
-          <button onClick={()=>setShowArchived(v=>!v)} style={{...btn,padding:'6px 14px',fontSize:10,background:'transparent',border:'1px solid #ede8df',color:'#5a7a8a',marginBottom:10}}>
-            {showArchived?'▲':'▼'} Archived Checklists ({archived.length})
-          </button>
-          {showArchived&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
-            {archived.map(list=>{
-              const done=list.steps.filter(s=>s.done).length;
-              const total=list.steps.length;
-              return(
-                <div key={list.id} style={{background:'#f5f5f5',border:'1px solid #ede8df',borderRadius:8,padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',opacity:0.7}}>
-                  <div>
-                    <div style={{fontWeight:700,fontSize:13,color:'#1b2d3a'}}>{list.client}</div>
-                    {list.trip&&<div style={{fontSize:11,color:'#9ab0bb'}}>{list.trip}</div>}
-                  </div>
-                  <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                    <span style={{fontSize:11,color:'#9ab0bb'}}>{done}/{total} steps</span>
-                    <button onClick={()=>archiveList(list.id)} style={{...btn,padding:'3px 9px',fontSize:10,background:'transparent',border:'1px solid #ede8df',color:'#5a7a8a'}}>Restore</button>
-                    <button onClick={()=>{if(window.confirm('Delete?'))deleteChecklist(list.id);}} style={{...btn,padding:'3px 8px',fontSize:10,background:'transparent',border:'1px solid #fcc',color:'#c0392b'}}>✕</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>}
-        </div>
-      )}
+      {archived.length>0&&<div style={{marginTop:24}}>
+        <button onClick={()=>setShowArchived(v=>!v)} style={{...btn,padding:'6px 14px',fontSize:10,background:'transparent',border:'1px solid #ede8df',color:'#5a7a8a',marginBottom:10}}>{showArchived?'▲':'▼'} Archived Checklists ({archived.length})</button>
+        {showArchived&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {archived.map(list=>{
+            const done=list.steps.filter(s=>s.done).length,total=list.steps.length;
+            return(<div key={list.id} style={{background:'#f5f5f5',border:'1px solid #ede8df',borderRadius:8,padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',opacity:0.7}}>
+              <div><div style={{fontWeight:700,fontSize:13,color:'#1b2d3a'}}>{list.client}</div>{list.trip&&<div style={{fontSize:11,color:'#9ab0bb'}}>{list.trip}</div>}</div>
+              <div style={{display:'flex',gap:8,alignItems:'center'}}><span style={{fontSize:11,color:'#9ab0bb'}}>{done}/{total} steps</span><button onClick={()=>archiveList(list.id)} style={{...btn,padding:'3px 9px',fontSize:10,background:'transparent',border:'1px solid #ede8df',color:'#5a7a8a'}}>Restore</button><button onClick={()=>{if(window.confirm('Delete?'))deleteChecklist(list.id);}} style={{...btn,padding:'3px 8px',fontSize:10,background:'transparent',border:'1px solid #fcc',color:'#c0392b'}}>✕</button></div>
+            </div>);
+          })}
+        </div>}
+      </div>}
     </div>
   );
 }
@@ -673,90 +545,53 @@ function CommissionView({session,sb,showToast}){
   const[payYear,setPayYear]=React.useState('all');
   const[payForm,setPayForm]=React.useState({client:'',supplier:'',ref:'',paid_date:'',year:new Date().getFullYear(),amount:'',notes:''});
   const[pendForm,setPendForm]=React.useState({client:'',supplier:'',ref:'',gross:'',supplier_pct:'',agent_split_pct:'',expected_amount:'',expected_date:'',year:new Date().getFullYear(),notes:''});
-  const uid=session.user.id;
+  const uid2=session.user.id;
   const YEARS=[];for(let y=2024;y<=2036;y++)YEARS.push(y);
-
   React.useEffect(()=>{loadData();},[]);
-
   async function loadData(){
     setLoading(true);
     const[{data:mp},{data:pc}]=await Promise.all([
-      sb.from('manual_payments').select('*').eq('user_id',uid).order('created_at',{ascending:false}),
-      sb.from('pending_commissions').select('*').eq('user_id',uid).order('created_at',{ascending:false})
+      sb.from('manual_payments').select('*').eq('user_id',uid2).order('created_at',{ascending:false}),
+      sb.from('pending_commissions').select('*').eq('user_id',uid2).order('created_at',{ascending:false})
     ]);
-    setManual(mp||[]);
-    setPending(pc||[]);
-    setLoading(false);
+    setManual(mp||[]);setPending(pc||[]);setLoading(false);
   }
-
   function cur(n){if(n==null||isNaN(n))return'--';return'$'+parseFloat(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
-
   function calcComm(form){
     const g=parseFloat(form.gross)||0,p=parseFloat(form.supplier_pct)||0,s=parseFloat(form.agent_split_pct)||0;
     if(g>0&&p>0&&s>0)return(g*(p/100)*(s/100)).toFixed(2);
     if(g>0&&p>0)return(g*(p/100)).toFixed(2);
-    return '';
+    return'';
   }
-
   async function savePay(){
     if(!payForm.amount){showToast('Enter a commission amount','err');return;}
-    const{error}=await sb.from('manual_payments').insert({...payForm,user_id:uid,amount:parseFloat(payForm.amount),year:parseInt(payForm.year)});
+    const{error}=await sb.from('manual_payments').insert({...payForm,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year)});
     if(error){showToast('Could not save payment','err');return;}
-    showToast('Payment saved!');
-    setShowAddPay(false);
-    setPayForm({client:'',supplier:'',ref:'',paid_date:'',year:new Date().getFullYear(),amount:'',notes:''});
-    loadData();
+    showToast('Payment saved!');setShowAddPay(false);
+    setPayForm({client:'',supplier:'',ref:'',paid_date:'',year:new Date().getFullYear(),amount:'',notes:''});loadData();
   }
-
-  async function delPay(id){
-    await sb.from('manual_payments').delete().eq('id',id).eq('user_id',uid);
-    loadData();
-  }
-
+  async function delPay(id){await sb.from('manual_payments').delete().eq('id',id).eq('user_id',uid2);loadData();}
   async function savePend(){
     const amt=pendForm.expected_amount||calcComm(pendForm);
     if(!amt){showToast('Enter or calculate an expected amount','err');return;}
-    const{error}=await sb.from('pending_commissions').insert({
-      ...pendForm,user_id:uid,
-      gross:parseFloat(pendForm.gross)||null,
-      supplier_pct:parseFloat(pendForm.supplier_pct)||null,
-      agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,
-      expected_amount:parseFloat(amt),
-      year:parseInt(pendForm.year),
-      status:'pending'
-    });
+    const{error}=await sb.from('pending_commissions').insert({...pendForm,user_id:uid2,gross:parseFloat(pendForm.gross)||null,supplier_pct:parseFloat(pendForm.supplier_pct)||null,agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,expected_amount:parseFloat(amt),year:parseInt(pendForm.year),status:'pending'});
     if(error){showToast('Could not save','err');return;}
-    showToast('Added to pending!');
-    setShowAddPend(false);
-    setPendForm({client:'',supplier:'',ref:'',gross:'',supplier_pct:'',agent_split_pct:'',expected_amount:'',expected_date:'',year:new Date().getFullYear(),notes:''});
-    loadData();
+    showToast('Added to pending!');setShowAddPend(false);
+    setPendForm({client:'',supplier:'',ref:'',gross:'',supplier_pct:'',agent_split_pct:'',expected_amount:'',expected_date:'',year:new Date().getFullYear(),notes:''});loadData();
   }
-
   async function markReceived(p){
-    await sb.from('pending_commissions').update({status:'received',expected_date:p.expected_date}).eq('id',p.id).eq('user_id',uid);
-    await sb.from('manual_payments').insert({
-      user_id:uid,client:p.client,supplier:p.supplier,ref:p.ref,
-      paid_date:new Date().toLocaleDateString(),year:p.year,
-      amount:p.expected_amount,notes:(p.notes||'')+' — moved from pending'
-    });
-    showToast('Commission marked received!');
-    loadData();
+    await sb.from('pending_commissions').update({status:'received'}).eq('id',p.id).eq('user_id',uid2);
+    await sb.from('manual_payments').insert({user_id:uid2,client:p.client,supplier:p.supplier,ref:p.ref,paid_date:new Date().toLocaleDateString(),year:p.year,amount:p.expected_amount,notes:(p.notes||'')+' — moved from pending'});
+    showToast('Commission marked received!');loadData();
   }
-
-  async function delPend(id){
-    await sb.from('pending_commissions').delete().eq('id',id).eq('user_id',uid);
-    loadData();
-  }
-
+  async function delPend(id){await sb.from('pending_commissions').delete().eq('id',id).eq('user_id',uid2);loadData();}
   function exportBackup(){
     const data={agentName:session.user.email,exportDate:new Date().toLocaleDateString(),manualPayments:manual,pendingCommissions:pending};
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');a.href=url;a.download='commissions_backup_'+new Date().toISOString().slice(0,10)+'.json';
-    a.click();URL.revokeObjectURL(url);
-    showToast('Backup downloaded!');
+    a.click();URL.revokeObjectURL(url);showToast('Backup downloaded!');
   }
-
   const activePend=pending.filter(p=>p.status==='pending');
   const recPend=pending.filter(p=>p.status==='received');
   const curYear=new Date().getFullYear();
@@ -766,30 +601,21 @@ function CommissionView({session,sb,showToast}){
   const pendTot=activePend.reduce((s,p)=>s+(parseFloat(p.expected_amount)||0),0);
   const yTot=yManual.reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
   const yPendTot=yPend.reduce((s,p)=>s+(parseFloat(p.expected_amount)||0),0);
-
-  // Filter payments
   let filtPay=[...manual];
   if(payYear!=='all')filtPay=filtPay.filter(p=>String(p.year)===payYear);
   if(paySearch){const q=paySearch.toLowerCase();filtPay=filtPay.filter(p=>[p.client,p.supplier,p.ref,p.notes].some(v=>v&&v.toLowerCase().includes(q)));}
   const filtTot=filtPay.reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
-
-  const C={navy:'#1b2d3a',teal:'#2e8b8b',tealL:'#e0f5f5',gold:'#c9a84c',goldL:'#f5e9c8',
-    green:'#2a7a50',greenL:'#e6f4ed',amber:'#b5730a',amberL:'#fff3d6',
-    red:'#b83232',redL:'#fdecea',cream:'#faf7f2',border:'#ede8df',muted:'#7a6e5f',gray:'#f5f3ef'};
-
+  const C={navy:'#1b2d3a',teal:'#2e8b8b',tealL:'#e0f5f5',gold:'#c9a84c',goldL:'#f5e9c8',green:'#2a7a50',greenL:'#e6f4ed',amber:'#b5730a',amberL:'#fff3d6',red:'#b83232',redL:'#fdecea',cream:'#faf7f2',border:'#ede8df',muted:'#7a6e5f',gray:'#f5f3ef'};
   const inp={width:'100%',padding:'8px 12px',border:'1px solid '+C.border,borderRadius:7,fontSize:12,color:C.navy,background:C.cream,outline:'none',fontFamily:'Georgia,serif'};
   const lbl={fontSize:10,color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4,display:'block',fontFamily:'Georgia,serif'};
-  const tabBtn=(t)=>({background:'none',border:'none',borderBottom:'2.5px solid '+(tab===t?C.teal:'transparent'),
-    color:tab===t?C.teal:C.muted,fontFamily:'Georgia,serif',fontSize:12,textTransform:'uppercase',
-    letterSpacing:'0.07em',padding:'10px 18px',cursor:'pointer',transition:'0.15s',marginBottom:-1});
-  const priBtn={background:C.navy,border:'none',borderRadius:7,color:C.goldL,fontFamily:'Georgia,serif',
-    fontSize:11,textTransform:'uppercase',letterSpacing:'0.06em',padding:'9px 20px',cursor:'pointer'};
-  const secBtn={background:C.cream,border:'1px solid '+C.border,borderRadius:7,color:C.navy,
-    fontFamily:'Georgia,serif',fontSize:11,textTransform:'uppercase',letterSpacing:'0.06em',padding:'7px 14px',cursor:'pointer'};
-  const delBtn={background:C.redL,border:'1px solid rgba(184,50,50,.25)',borderRadius:6,color:C.red,
-    fontSize:11,padding:'3px 8px',cursor:'pointer'};
-  const greenBtn={background:C.greenL,border:'1px solid rgba(42,122,80,.3)',color:C.green,
-    borderRadius:6,fontFamily:'Georgia,serif',fontSize:10,textTransform:'uppercase',letterSpacing:'0.05em',padding:'4px 10px',cursor:'pointer'};
+  const tabBtn=(t)=>({background:'none',border:'none',borderBottom:'2.5px solid '+(tab===t?C.teal:'transparent'),color:tab===t?C.teal:C.muted,fontFamily:'Georgia,serif',fontSize:12,textTransform:'uppercase',letterSpacing:'0.07em',padding:'10px 18px',cursor:'pointer',transition:'0.15s',marginBottom:-1});
+  const priBtn={background:C.navy,border:'none',borderRadius:7,color:C.goldL,fontFamily:'Georgia,serif',fontSize:11,textTransform:'uppercase',letterSpacing:'0.06em',padding:'9px 20px',cursor:'pointer'};
+  const secBtn={background:C.cream,border:'1px solid '+C.border,borderRadius:7,color:C.navy,fontFamily:'Georgia,serif',fontSize:11,textTransform:'uppercase',letterSpacing:'0.06em',padding:'7px 14px',cursor:'pointer'};
+  const delBtn={background:C.redL,border:'1px solid rgba(184,50,50,.25)',borderRadius:6,color:C.red,fontSize:11,padding:'3px 8px',cursor:'pointer'};
+  const greenBtn={background:C.greenL,border:'1px solid rgba(42,122,80,.3)',color:C.green,borderRadius:6,fontFamily:'Georgia,serif',fontSize:10,textTransform:'uppercase',letterSpacing:'0.05em',padding:'4px 10px',cursor:'pointer'};
+
+  /* ── NEW: Commission Reconciliation button style ── */
+  const reconcileBtn={background:'linear-gradient(135deg,#c9a84c,#a88a3a)',border:'none',borderRadius:7,color:'#ffffff',fontFamily:'Georgia,serif',fontSize:11,textTransform:'uppercase',letterSpacing:'0.08em',padding:'9px 18px',cursor:'pointer',fontWeight:700,display:'flex',alignItems:'center',gap:6};
 
   const Card=({label,value,color,sub})=>(
     <div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,padding:16}}>
@@ -798,145 +624,80 @@ function CommissionView({session,sb,showToast}){
       {sub&&<div style={{fontSize:10,color:C.muted,marginTop:4}}>{sub}</div>}
     </div>
   );
-
   if(loading)return<div style={{padding:40,textAlign:'center',color:C.muted}}>Loading commissions...</div>;
-
   return(
     <div style={{height:'100%',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      {/* Header */}
       <div style={{padding:'16px 24px 0',background:C.cream,borderBottom:'1px solid '+C.border,flexShrink:0}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
           <div>
             <div style={{fontSize:10,letterSpacing:'0.16em',color:C.muted,textTransform:'uppercase',marginBottom:3}}>Point Me to Paradise Travel</div>
             <div style={{fontSize:19,fontWeight:700,color:C.navy,fontFamily:'Georgia,serif'}}>💰 My Commissions</div>
           </div>
-          <div style={{display:'flex',gap:8}}>
+          {/* ── Action buttons row ── */}
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            {/* NEW: Commission Reconciliation Request button */}
+            <button onClick={()=>window.open(window.PMTP.RECONCILIATION_FORM,'_blank')} style={reconcileBtn}>
+              📋 Request Reconciliation
+            </button>
             <button onClick={exportBackup} style={{...secBtn,fontSize:10,padding:'6px 12px'}}>⬇ Back Up</button>
           </div>
         </div>
-        {/* Tabs */}
         <div style={{display:'flex',borderBottom:'1px solid '+C.border}}>
           {['dash','payments','pending'].map(t=>(
-            <button key={t} onClick={()=>setTab(t)} style={tabBtn(t)}>
-              {t==='dash'?'Dashboard':t==='payments'?'Payments':'Pending'}
-            </button>
+            <button key={t} onClick={()=>setTab(t)} style={tabBtn(t)}>{t==='dash'?'Dashboard':t==='payments'?'Payments':'Pending'}</button>
           ))}
         </div>
       </div>
-
-      {/* Content */}
       <div style={{flex:1,overflowY:'auto',padding:'20px 24px'}}>
-
-        {/* ── DASHBOARD TAB ── */}
         {tab==='dash'&&<>
-          {/* Year toggle */}
           <div style={{marginBottom:16}}>
             <div style={{fontSize:10,color:C.muted,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:8,fontFamily:'Georgia,serif'}}>Year View</div>
             <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-              {YEARS.map(yr=>(
-                <button key={yr} onClick={()=>setDashYear(yr)} style={{padding:'5px 14px',borderRadius:20,fontFamily:'Georgia,serif',fontSize:11,cursor:'pointer',
-                  border:'1px solid '+(dashYear===yr?C.teal:C.border),
-                  background:dashYear===yr?C.teal:C.cream,
-                  color:dashYear===yr?'#fff':C.muted}}>
-                  {yr}{yr===curYear?' (now)':''}
-                </button>
-              ))}
+              {YEARS.map(yr=>(<button key={yr} onClick={()=>setDashYear(yr)} style={{padding:'5px 14px',borderRadius:20,fontFamily:'Georgia,serif',fontSize:11,cursor:'pointer',border:'1px solid '+(dashYear===yr?C.teal:C.border),background:dashYear===yr?C.teal:C.cream,color:dashYear===yr?'#fff':C.muted}}>{yr}{yr===curYear?' (now)':''}</button>))}
             </div>
           </div>
-
-          {/* All-time cards */}
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:10,marginBottom:20}}>
             <Card label="All-Time Received" value={cur(allTimeTot)} color={C.teal} sub="total paid"/>
             <Card label="All-Time Pending" value={cur(pendTot)} color={C.amber} sub="across all years"/>
             <Card label="All-Time Expected" value={cur(allTimeTot+pendTot)} color={C.navy} sub="received + pending"/>
             <Card label="Total Records" value={manual.length} sub="payments tracked"/>
           </div>
-
-          {/* Year panel */}
           <div style={{background:C.cream,border:'1px solid '+C.border,borderLeft:'3px solid '+C.teal,borderRadius:10,padding:20,marginBottom:20}}>
-            <div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:14,fontFamily:'Georgia,serif'}}>
-              {dashYear}{dashYear<curYear?' Total':dashYear===curYear?' YTD':' Projected'}
-            </div>
+            <div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:14,fontFamily:'Georgia,serif'}}>{dashYear}{dashYear<curYear?' Total':dashYear===curYear?' YTD':' Projected'}</div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:10}}>
               <Card label="Received" value={cur(yTot)} color={C.teal} sub={yManual.length+' payment'+(yManual.length!==1?'s':'')}/>
               <Card label="Pending" value={cur(yPendTot)} color={C.amber} sub={yPend.length+' expected'}/>
               <Card label="Total Expected" value={cur(yTot+yPendTot)} sub="received + pending"/>
             </div>
           </div>
-
-          {/* Pending for year */}
-          {yPend.length>0&&<>
-            <div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:10,fontFamily:'Georgia,serif'}}>Pending — {dashYear}</div>
-            <div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,overflow:'auto',marginBottom:20}}>
-              <table style={{width:'100%',borderCollapse:'collapse',minWidth:500}}>
-                <thead><tr>{['Client','Supplier','Expected Date','Gross','Supplier %','Split %','Your Commission'].map(h=>(
-                  <th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:h.includes('Commission')||h.includes('Gross')||h.includes('%')?'right':'left',whiteSpace:'nowrap'}}>{h}</th>
-                ))}</tr></thead>
-                <tbody>{yPend.map((p,i)=>(
-                  <tr key={i}><td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td>
-                  <td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td>
-                  <td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.expected_date||'—'}</td>
-                  <td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.gross?cur(p.gross):'—'}</td>
-                  <td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.supplier_pct?p.supplier_pct+'%':'—'}</td>
-                  <td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.agent_split_pct?p.agent_split_pct+'%':'—'}</td>
-                  <td style={{padding:'9px 12px',color:C.amber,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.expected_amount)}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          </>}
-
-          {/* Recent payments */}
-          {(yManual.length>0||manual.length>0)&&<>
-            <div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:10,fontFamily:'Georgia,serif'}}>
-              Recent Payments{yManual.length?' — '+dashYear:''}
-            </div>
-            <div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,overflow:'auto'}}>
-              <table style={{width:'100%',borderCollapse:'collapse',minWidth:400}}>
-                <thead><tr>{['Client','Supplier','Paid Date','Amount'].map(h=>(
-                  <th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:h==='Amount'?'right':'left'}}>{h}</th>
-                ))}</tr></thead>
-                <tbody>{(yManual.length?[...yManual].slice(0,5):[...manual].slice(0,5)).map((p,i)=>(
-                  <tr key={i}>
-                    <td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.paid_date||'—'} <span style={{background:C.gray,color:C.muted,fontSize:9,padding:'1px 6px',borderRadius:10,border:'1px solid '+C.border}}>{p.year}</span></td>
-                    <td style={{padding:'9px 12px',color:C.green,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.amount)}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          </>}
+          {yPend.length>0&&<><div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:10,fontFamily:'Georgia,serif'}}>Pending — {dashYear}</div>
+          <div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,overflow:'auto',marginBottom:20}}>
+            <table style={{width:'100%',borderCollapse:'collapse',minWidth:500}}>
+              <thead><tr>{['Client','Supplier','Expected Date','Gross','Supplier %','Split %','Your Commission'].map(h=>(<th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:h.includes('Commission')||h.includes('Gross')||h.includes('%')?'right':'left',whiteSpace:'nowrap'}}>{h}</th>))}</tr></thead>
+              <tbody>{yPend.map((p,i)=>(<tr key={i}><td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td><td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.expected_date||'—'}</td><td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.gross?cur(p.gross):'—'}</td><td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.supplier_pct?p.supplier_pct+'%':'—'}</td><td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.agent_split_pct?p.agent_split_pct+'%':'—'}</td><td style={{padding:'9px 12px',color:C.amber,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.expected_amount)}</td></tr>))}</tbody>
+            </table>
+          </div></>}
+          {(yManual.length>0||manual.length>0)&&<><div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:10,fontFamily:'Georgia,serif'}}>Recent Payments{yManual.length?' — '+dashYear:''}</div>
+          <div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,overflow:'auto'}}>
+            <table style={{width:'100%',borderCollapse:'collapse',minWidth:400}}>
+              <thead><tr>{['Client','Supplier','Paid Date','Amount'].map(h=>(<th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:h==='Amount'?'right':'left'}}>{h}</th>))}</tr></thead>
+              <tbody>{(yManual.length?[...yManual].slice(0,5):[...manual].slice(0,5)).map((p,i)=>(<tr key={i}><td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td><td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.paid_date||'—'} <span style={{background:C.gray,color:C.muted,fontSize:9,padding:'1px 6px',borderRadius:10,border:'1px solid '+C.border}}>{p.year}</span></td><td style={{padding:'9px 12px',color:C.green,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.amount)}</td></tr>))}</tbody>
+            </table>
+          </div></>}
         </>}
-
-        {/* ── PAYMENTS TAB ── */}
         {tab==='payments'&&<>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
             <div style={{fontSize:13,fontWeight:700,color:C.navy,fontFamily:'Georgia,serif',textTransform:'uppercase',letterSpacing:'0.12em'}}>Payment Records</div>
             <button onClick={()=>setShowAddPay(v=>!v)} style={priBtn}>+ Add Payment</button>
           </div>
-
           {showAddPay&&<div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,padding:20,marginBottom:20}}>
             <div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:14,fontFamily:'Georgia,serif'}}>Add New Payment</div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10,marginBottom:14}}>
-              {[['client','Client Name','text'],['supplier','Supplier','text'],['ref','Booking Ref','text'],['paid_date','Paid Date','text'],['year','Year','number'],['amount','Commission ($)','number']].map(([k,l,t])=>(
-                <div key={k} style={{display:'flex',flexDirection:'column',gap:4}}>
-                  <label style={lbl}>{l}</label>
-                  <input type={t} value={payForm[k]||''} onChange={e=>setPayForm(f=>({...f,[k]:e.target.value}))} style={inp} placeholder={l}/>
-                </div>
-              ))}
+              {[['client','Client Name','text'],['supplier','Supplier','text'],['ref','Booking Ref','text'],['paid_date','Paid Date','text'],['year','Year','number'],['amount','Commission ($)','number']].map(([k,l,t])=>(<div key={k} style={{display:'flex',flexDirection:'column',gap:4}}><label style={lbl}>{l}</label><input type={t} value={payForm[k]||''} onChange={e=>setPayForm(f=>({...f,[k]:e.target.value}))} style={inp} placeholder={l}/></div>))}
             </div>
-            <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:14}}>
-              <label style={lbl}>Notes</label>
-              <input value={payForm.notes||''} onChange={e=>setPayForm(f=>({...f,notes:e.target.value}))} style={inp} placeholder="Optional notes"/>
-            </div>
-            <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-              <button onClick={()=>setShowAddPay(false)} style={secBtn}>Cancel</button>
-              <button onClick={savePay} style={priBtn}>Save Payment</button>
-            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:14}}><label style={lbl}>Notes</label><input value={payForm.notes||''} onChange={e=>setPayForm(f=>({...f,notes:e.target.value}))} style={inp} placeholder="Optional notes"/></div>
+            <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}><button onClick={()=>setShowAddPay(false)} style={secBtn}>Cancel</button><button onClick={savePay} style={priBtn}>Save Payment</button></div>
           </div>}
-
-          {/* Filters */}
           <div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap',alignItems:'center'}}>
             <input value={paySearch} onChange={e=>setPaySearch(e.target.value)} placeholder="Search client, supplier, ref..." style={{...inp,flex:1,minWidth:200}}/>
             <select value={payYear} onChange={e=>setPayYear(e.target.value)} style={{...inp,width:'auto'}}>
@@ -946,138 +707,51 @@ function CommissionView({session,sb,showToast}){
             {(payYear!=='all'||paySearch)&&<button onClick={()=>{setPayYear('all');setPaySearch('');}} style={secBtn}>Clear</button>}
             <div style={{fontSize:11,color:C.muted,whiteSpace:'nowrap'}}>{filtPay.length} records · {cur(filtTot)}</div>
           </div>
-
-          {filtPay.length===0?<div style={{textAlign:'center',padding:'48px 24px',color:C.muted}}>
-            <div style={{fontSize:15,fontFamily:'Georgia,serif',color:C.navy,marginBottom:8,textTransform:'uppercase',letterSpacing:'0.1em'}}>No Records Match</div>
-            <div>Try adjusting your search or filters.</div>
-          </div>:
+          {filtPay.length===0?<div style={{textAlign:'center',padding:'48px 24px',color:C.muted}}><div style={{fontSize:15,fontFamily:'Georgia,serif',color:C.navy,marginBottom:8,textTransform:'uppercase',letterSpacing:'0.1em'}}>No Records Match</div><div>Try adjusting your search or filters.</div></div>:
           <div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,overflow:'auto'}}>
             <table style={{width:'100%',borderCollapse:'collapse',minWidth:500}}>
-              <thead><tr>{['Client','Booking Ref','Supplier','Paid Date','Commission',''].map(h=>(
-                <th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:h==='Commission'?'right':'left'}}>{h}</th>
-              ))}</tr></thead>
+              <thead><tr>{['Client','Booking Ref','Supplier','Paid Date','Commission',''].map(h=>(<th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:h==='Commission'?'right':'left'}}>{h}</th>))}</tr></thead>
               <tbody>
-                {filtPay.map((p,i)=>(
-                  <tr key={i}>
-                    <td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,fontSize:11,fontFamily:'Courier New,monospace',borderBottom:'1px solid '+C.border}}>{p.ref||'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.paid_date||'—'} <span style={{background:C.gray,color:C.muted,fontSize:9,padding:'1px 6px',borderRadius:10,border:'1px solid '+C.border}}>{p.year}</span></td>
-                    <td style={{padding:'9px 12px',color:C.green,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.amount)}</td>
-                    <td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><button onClick={()=>delPay(p.id)} style={delBtn}>✕</button></td>
-                  </tr>
-                ))}
-                <tr style={{background:C.gray}}>
-                  <td colSpan={4} style={{padding:'9px 12px',fontWeight:700,color:C.navy,fontFamily:'Georgia,serif',borderTop:'2px solid '+C.border}}>Total</td>
-                  <td style={{padding:'9px 12px',fontWeight:700,color:C.navy,fontFamily:'Georgia,serif',textAlign:'right',borderTop:'2px solid '+C.border}}>{cur(filtTot)}</td>
-                  <td style={{borderTop:'2px solid '+C.border}}/>
-                </tr>
+                {filtPay.map((p,i)=>(<tr key={i}><td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,fontFamily:'Courier New,monospace',borderBottom:'1px solid '+C.border}}>{p.ref||'—'}</td><td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.paid_date||'—'} <span style={{background:C.gray,color:C.muted,fontSize:9,padding:'1px 6px',borderRadius:10,border:'1px solid '+C.border}}>{p.year}</span></td><td style={{padding:'9px 12px',color:C.green,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.amount)}</td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><button onClick={()=>delPay(p.id)} style={delBtn}>✕</button></td></tr>))}
+                <tr style={{background:C.gray}}><td colSpan={4} style={{padding:'9px 12px',fontWeight:700,color:C.navy,fontFamily:'Georgia,serif',borderTop:'2px solid '+C.border}}>Total</td><td style={{padding:'9px 12px',fontWeight:700,color:C.navy,fontFamily:'Georgia,serif',textAlign:'right',borderTop:'2px solid '+C.border}}>{cur(filtTot)}</td><td style={{borderTop:'2px solid '+C.border}}/></tr>
               </tbody>
             </table>
           </div>}
         </>}
-
-        {/* ── PENDING TAB ── */}
         {tab==='pending'&&<>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
             <div style={{fontSize:13,fontWeight:700,color:C.navy,fontFamily:'Georgia,serif',textTransform:'uppercase',letterSpacing:'0.12em'}}>Pending Commissions</div>
             <button onClick={()=>setShowAddPend(v=>!v)} style={priBtn}>+ Add Expected</button>
           </div>
-
           <div style={{background:'#e0f5f5',border:'1px solid rgba(46,139,139,.3)',borderRadius:10,padding:'12px 16px',color:C.teal,fontSize:13,marginBottom:16,lineHeight:1.7}}>
             Track commissions you are expecting but have not yet received. Click <strong>✓ Received</strong> once payment arrives — it will automatically move to your Payments history.
           </div>
-
           {showAddPend&&<div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,padding:20,marginBottom:20}}>
             <div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:14,fontFamily:'Georgia,serif'}}>Add Expected Commission</div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10,marginBottom:14}}>
-              {[['client','Client Name','text'],['supplier','Supplier','text'],['ref','Booking Ref','text'],['gross','Gross Booking ($)','number'],['supplier_pct','Supplier Comm %','number'],['agent_split_pct','Your Split %','number']].map(([k,l,t])=>(
-                <div key={k} style={{display:'flex',flexDirection:'column',gap:4}}>
-                  <label style={lbl}>{l}</label>
-                  <input type={t} value={pendForm[k]||''} onChange={e=>{
-                    const nf={...pendForm,[k]:e.target.value};
-                    const calc=calcComm(nf);
-                    setPendForm({...nf,expected_amount:calc||pendForm.expected_amount});
-                  }} style={inp} placeholder={l}/>
-                </div>
-              ))}
-              <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                <label style={{...lbl}}>Your Commission ($) <span style={{color:C.teal,fontSize:9}}>auto-calc</span></label>
-                <input type="number" value={pendForm.expected_amount||''} onChange={e=>setPendForm(f=>({...f,expected_amount:e.target.value}))} style={inp} placeholder="0.00"/>
-              </div>
-              <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                <label style={lbl}>Expected Date</label>
-                <input type="text" value={pendForm.expected_date||''} onChange={e=>setPendForm(f=>({...f,expected_date:e.target.value}))} style={inp} placeholder="e.g. 4/15/2026"/>
-              </div>
-              <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                <label style={lbl}>Year</label>
-                <input type="number" value={pendForm.year||''} onChange={e=>setPendForm(f=>({...f,year:e.target.value}))} style={inp}/>
-              </div>
+              {[['client','Client Name','text'],['supplier','Supplier','text'],['ref','Booking Ref','text'],['gross','Gross Booking ($)','number'],['supplier_pct','Supplier Comm %','number'],['agent_split_pct','Your Split %','number']].map(([k,l,t])=>(<div key={k} style={{display:'flex',flexDirection:'column',gap:4}}><label style={lbl}>{l}</label><input type={t} value={pendForm[k]||''} onChange={e=>{const nf={...pendForm,[k]:e.target.value};const calc=calcComm(nf);setPendForm({...nf,expected_amount:calc||pendForm.expected_amount});}} style={inp} placeholder={l}/></div>))}
+              <div style={{display:'flex',flexDirection:'column',gap:4}}><label style={{...lbl}}>Your Commission ($) <span style={{color:C.teal,fontSize:9}}>auto-calc</span></label><input type="number" value={pendForm.expected_amount||''} onChange={e=>setPendForm(f=>({...f,expected_amount:e.target.value}))} style={inp} placeholder="0.00"/></div>
+              <div style={{display:'flex',flexDirection:'column',gap:4}}><label style={lbl}>Expected Date</label><input type="text" value={pendForm.expected_date||''} onChange={e=>setPendForm(f=>({...f,expected_date:e.target.value}))} style={inp} placeholder="e.g. 4/15/2026"/></div>
+              <div style={{display:'flex',flexDirection:'column',gap:4}}><label style={lbl}>Year</label><input type="number" value={pendForm.year||''} onChange={e=>setPendForm(f=>({...f,year:e.target.value}))} style={inp}/></div>
             </div>
-            <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:14}}>
-              <label style={lbl}>Notes</label>
-              <input value={pendForm.notes||''} onChange={e=>setPendForm(f=>({...f,notes:e.target.value}))} style={inp} placeholder="Optional notes"/>
-            </div>
-            <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-              <button onClick={()=>setShowAddPend(false)} style={secBtn}>Cancel</button>
-              <button onClick={savePend} style={priBtn}>Add to Pending</button>
-            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:14}}><label style={lbl}>Notes</label><input value={pendForm.notes||''} onChange={e=>setPendForm(f=>({...f,notes:e.target.value}))} style={inp} placeholder="Optional notes"/></div>
+            <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}><button onClick={()=>setShowAddPend(false)} style={secBtn}>Cancel</button><button onClick={savePend} style={priBtn}>Add to Pending</button></div>
           </div>}
-
-          {activePend.length===0&&recPend.length===0&&<div style={{textAlign:'center',padding:'48px 24px',color:C.muted}}>
-            <div style={{fontSize:15,fontFamily:'Georgia,serif',color:C.navy,marginBottom:8,textTransform:'uppercase',letterSpacing:'0.1em'}}>No Pending Commissions</div>
-            <div>Click &ldquo;+ Add Expected&rdquo; to track a commission you&rsquo;re waiting on.</div>
-          </div>}
-
-          {activePend.length>0&&<>
-            <div style={{fontSize:12,color:C.muted,marginBottom:10,fontFamily:'Georgia,serif'}}>{activePend.length} pending &nbsp;·&nbsp; <span style={{color:C.amber,fontWeight:600}}>{cur(activePend.reduce((s,p)=>s+(parseFloat(p.expected_amount)||0),0))} expected</span></div>
-            <div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,overflow:'auto',marginBottom:24}}>
-              <table style={{width:'100%',borderCollapse:'collapse',minWidth:600}}>
-                <thead><tr>{['Client','Supplier','Booking Ref','Expected Date','Gross','Sup %','Split %','Your Commission','Status','Action'].map(h=>(
-                  <th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:['Gross','Sup %','Split %','Your Commission'].includes(h)?'right':'left',whiteSpace:'nowrap'}}>{h}</th>
-                ))}</tr></thead>
-                <tbody>{activePend.map((p,i)=>(
-                  <tr key={i}>
-                    <td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,fontSize:11,fontFamily:'Courier New,monospace',borderBottom:'1px solid '+C.border}}>{p.ref||'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.expected_date||'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.gross?cur(p.gross):'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.supplier_pct?p.supplier_pct+'%':'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.agent_split_pct?p.agent_split_pct+'%':'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.amber,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.expected_amount)}</td>
-                    <td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:20,fontSize:10,fontFamily:'Georgia,serif',fontWeight:700,background:C.amberL,color:C.amber,border:'1px solid rgba(181,115,10,.25)'}}>Pending</span></td>
-                    <td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}>
-                      <div style={{display:'flex',gap:6}}>
-                        <button onClick={()=>markReceived(p)} style={greenBtn}>✓ Received</button>
-                        <button onClick={()=>delPend(p.id)} style={delBtn}>✕</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          </>}
-
-          {recPend.length>0&&<>
-            <div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:10,fontFamily:'Georgia,serif',marginTop:4}}>Previously Received</div>
-            <div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,overflow:'auto'}}>
-              <table style={{width:'100%',borderCollapse:'collapse',minWidth:400}}>
-                <thead><tr>{['Client','Supplier','Expected Date','Amount','Status'].map(h=>(
-                  <th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:h==='Amount'?'right':'left'}}>{h}</th>
-                ))}</tr></thead>
-                <tbody>{recPend.map((p,i)=>(
-                  <tr key={i}>
-                    <td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.expected_date||'—'}</td>
-                    <td style={{padding:'9px 12px',color:C.green,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.expected_amount)}</td>
-                    <td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:20,fontSize:10,fontFamily:'Georgia,serif',fontWeight:700,background:C.greenL,color:C.green,border:'1px solid rgba(42,122,80,.25)'}}>Received</span></td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          </>}
+          {activePend.length===0&&recPend.length===0&&<div style={{textAlign:'center',padding:'48px 24px',color:C.muted}}><div style={{fontSize:15,fontFamily:'Georgia,serif',color:C.navy,marginBottom:8,textTransform:'uppercase',letterSpacing:'0.1em'}}>No Pending Commissions</div><div>Click "+ Add Expected" to track a commission you're waiting on.</div></div>}
+          {activePend.length>0&&<><div style={{fontSize:12,color:C.muted,marginBottom:10,fontFamily:'Georgia,serif'}}>{activePend.length} pending &nbsp;·&nbsp; <span style={{color:C.amber,fontWeight:600}}>{cur(activePend.reduce((s,p)=>s+(parseFloat(p.expected_amount)||0),0))} expected</span></div>
+          <div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,overflow:'auto',marginBottom:24}}>
+            <table style={{width:'100%',borderCollapse:'collapse',minWidth:600}}>
+              <thead><tr>{['Client','Supplier','Booking Ref','Expected Date','Gross','Sup %','Split %','Your Commission','Status','Action'].map(h=>(<th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:['Gross','Sup %','Split %','Your Commission'].includes(h)?'right':'left',whiteSpace:'nowrap'}}>{h}</th>))}</tr></thead>
+              <tbody>{activePend.map((p,i)=>(<tr key={i}><td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td><td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,fontFamily:'Courier New,monospace',borderBottom:'1px solid '+C.border}}>{p.ref||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.expected_date||'—'}</td><td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.gross?cur(p.gross):'—'}</td><td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.supplier_pct?p.supplier_pct+'%':'—'}</td><td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.agent_split_pct?p.agent_split_pct+'%':'—'}</td><td style={{padding:'9px 12px',color:C.amber,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.expected_amount)}</td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:20,fontSize:10,fontFamily:'Georgia,serif',fontWeight:700,background:C.amberL,color:C.amber,border:'1px solid rgba(181,115,10,.25)'}}>Pending</span></td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><div style={{display:'flex',gap:6}}><button onClick={()=>markReceived(p)} style={greenBtn}>✓ Received</button><button onClick={()=>delPend(p.id)} style={delBtn}>✕</button></div></td></tr>))}</tbody>
+            </table>
+          </div></>}
+          {recPend.length>0&&<><div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:10,fontFamily:'Georgia,serif',marginTop:4}}>Previously Received</div>
+          <div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,overflow:'auto'}}>
+            <table style={{width:'100%',borderCollapse:'collapse',minWidth:400}}>
+              <thead><tr>{['Client','Supplier','Expected Date','Amount','Status'].map(h=>(<th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:h==='Amount'?'right':'left'}}>{h}</th>))}</tr></thead>
+              <tbody>{recPend.map((p,i)=>(<tr key={i}><td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td><td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.expected_date||'—'}</td><td style={{padding:'9px 12px',color:C.green,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.expected_amount)}</td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:20,fontSize:10,fontFamily:'Georgia,serif',fontWeight:700,background:C.greenL,color:C.green,border:'1px solid rgba(42,122,80,.25)'}}>Received</span></td></tr>))}</tbody>
+            </table>
+          </div></>}
         </>}
       </div>
     </div>
@@ -1087,193 +761,93 @@ function CommissionView({session,sb,showToast}){
 /* ── Calendar / Agenda View ── */
 function CalendarView({active,MODS,highlightId,setHighlightId,isOD,isUG,daysTo,fmtDate,getDK,setView,T,btn}){
   const[weekOffset,setWeekOffset]=React.useState(0);
-  const[calMode,setCalMode]=React.useState('agenda'); // agenda | week
-
-  // Collect ALL dated items across all modules
+  const[calMode,setCalMode]=React.useState('agenda');
   const allItems=[];
   MODS.filter(m=>!m.external&&m.fields.length>0).forEach(m=>{
-    const dk=getDK(m);
-    if(!dk)return;
-    active(m.id).forEach(item=>{
-      if(item[dk]){
-        allItems.push({item,mod:m,date:item[dk],dk});
-      }
-    });
+    const dk=getDK(m);if(!dk)return;
+    active(m.id).forEach(item=>{if(item[dk])allItems.push({item,mod:m,date:item[dk],dk});});
   });
-
-  // Sort by date
   allItems.sort((a,b)=>a.date.localeCompare(b.date));
-
-  // Group by date
   const grouped={};
-  allItems.forEach(({item,mod,date,dk})=>{
-    if(!grouped[date])grouped[date]=[];
-    grouped[date].push({item,mod,dk});
-  });
-
+  allItems.forEach(({item,mod,date,dk})=>{if(!grouped[date])grouped[date]=[];grouped[date].push({item,mod,dk});});
   const today=new Date();today.setHours(0,0,0,0);
   const todayStr=today.toISOString().slice(0,10);
-
-  // Module colors
-  const modColor=(mod)=>{
-    const colors={
-      hpTrips:T.red, hpFollowups:T.orange, finalPayments:T.gold,
-      obc:T.teal, components:'#2e8b8b', itineraries:T.goldLight,
-      newInquiries:'#7b68ee', softFollowups:T.teal, agentRequests:'#9b59b6',
-      hotelRequests:'#e67e22', supplierInteractions:'#8e44ad', admin:T.green,
-    };
-    return colors[mod.id]||T.navy;
-  };
-
-  // Week view helpers
-  const getWeekDays=()=>{
-    const days=[];
-    const start=new Date(today);
-    start.setDate(start.getDate() + weekOffset*7 - start.getDay());
-    for(let i=0;i<7;i++){
-      const d=new Date(start);
-      d.setDate(d.getDate()+i);
-      days.push(d);
-    }
-    return days;
-  };
-
+  const modColor=(mod)=>{const colors={hpTrips:T.red,hpFollowups:T.orange,finalPayments:T.gold,obc:T.teal,components:'#2e8b8b',itineraries:T.goldLight,newInquiries:'#7b68ee',softFollowups:T.teal,agentRequests:'#9b59b6',hotelRequests:'#e67e22',supplierInteractions:'#8e44ad',admin:T.green};return colors[mod.id]||T.navy;};
+  const getWeekDays=()=>{const days=[];const start=new Date(today);start.setDate(start.getDate()+weekOffset*7-start.getDay());for(let i=0;i<7;i++){const d=new Date(start);d.setDate(d.getDate()+i);days.push(d);}return days;};
   const dateToStr=d=>d.toISOString().slice(0,10);
-
   const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-  // Upcoming / overdue split for agenda
   const overdue=Object.entries(grouped).filter(([d])=>d<todayStr).sort((a,b)=>b[0].localeCompare(a[0]));
   const upcoming=Object.entries(grouped).filter(([d])=>d>=todayStr);
-
   const DayItem=({item,mod,dk})=>{
-    const od=isOD(item,mod);
-    const ug=isUG(item,mod);
+    const od=isOD(item,mod),ug=isUG(item,mod);
     const f0=mod.fields[0];
     const aF=mod.fields.find(f=>['action','reason','components','task','need','subject'].includes(f.k));
     const color=modColor(mod);
-    return(
-      <div onClick={()=>{setView(mod.id);setHighlightId(item.id);setTimeout(()=>setHighlightId(null),2500);}} style={{display:'flex',alignItems:'flex-start',gap:8,padding:'6px 10px',borderRadius:6,background:od?T.redPale:T.white,border:'1px solid '+(od?T.red:ug?color:'#ede8df'),cursor:'pointer',marginBottom:4}}>
-        <div style={{width:3,borderRadius:2,alignSelf:'stretch',background:color,flexShrink:0,minHeight:24}}/>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}>
-            <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:T.white,background:color,padding:'1px 5px',borderRadius:3,flexShrink:0}}>{mod.icon} {mod.nav||mod.label}</span>
-            {od&&<span style={{fontSize:9,fontWeight:700,color:T.red,textTransform:'uppercase'}}>OVERDUE</span>}
-          </div>
-          <div style={{fontWeight:700,fontSize:12,color:T.navy,marginTop:2}}>{item[f0.k]||'—'}</div>
-          {aF&&item[aF.k]&&<div style={{fontSize:11,color:T.textSec,lineHeight:1.4}}>{item[aF.k].slice(0,60)}{item[aF.k].length>60?'...':''}</div>}
-        </div>
+    return(<div onClick={()=>{setView(mod.id);setHighlightId(item.id);setTimeout(()=>setHighlightId(null),2500);}} style={{display:'flex',alignItems:'flex-start',gap:8,padding:'6px 10px',borderRadius:6,background:od?T.redPale:T.white,border:'1px solid '+(od?T.red:ug?color:'#ede8df'),cursor:'pointer',marginBottom:4}}>
+      <div style={{width:3,borderRadius:2,alignSelf:'stretch',background:color,flexShrink:0,minHeight:24}}/>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}}><span style={{fontSize:9,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:T.white,background:color,padding:'1px 5px',borderRadius:3,flexShrink:0}}>{mod.icon} {mod.nav||mod.label}</span>{od&&<span style={{fontSize:9,fontWeight:700,color:T.red,textTransform:'uppercase'}}>OVERDUE</span>}</div>
+        <div style={{fontWeight:700,fontSize:12,color:T.navy,marginTop:2}}>{item[f0.k]||'—'}</div>
+        {aF&&item[aF.k]&&<div style={{fontSize:11,color:T.textSec,lineHeight:1.4}}>{item[aF.k].slice(0,60)}{item[aF.k].length>60?'...':''}</div>}
       </div>
-    );
+    </div>);
   };
-
   const weekDays=getWeekDays();
-
   return(
     <div style={{padding:'20px 26px',overflowY:'auto',height:'100%'}}>
-      {/* Header */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18}}>
         <div style={{display:'flex',alignItems:'center',gap:13}}>
           <div style={{width:4,height:38,background:'linear-gradient(to bottom,#2e8b8b,'+T.teal+')',borderRadius:2}}/>
-          <div>
-            <div style={{fontSize:10,letterSpacing:'0.16em',color:T.textSec,textTransform:'uppercase',marginBottom:3}}>{allItems.length} dated items</div>
-            <div style={{fontSize:19,fontWeight:700,color:T.navy,letterSpacing:'0.04em'}}>📅 Calendar / Agenda</div>
-          </div>
+          <div><div style={{fontSize:10,letterSpacing:'0.16em',color:T.textSec,textTransform:'uppercase',marginBottom:3}}>{allItems.length} dated items</div><div style={{fontSize:19,fontWeight:700,color:T.navy,letterSpacing:'0.04em'}}>📅 Calendar / Agenda</div></div>
         </div>
         <div style={{display:'flex',gap:8}}>
           <button onClick={()=>setCalMode('agenda')} style={{...btn,padding:'6px 14px',fontSize:10,background:calMode==='agenda'?'linear-gradient(135deg,'+T.navy+','+T.navyMid+')':'transparent',border:'1px solid '+(calMode==='agenda'?T.gold:T.border),color:calMode==='agenda'?T.goldLight:T.textSec}}>📋 Agenda</button>
           <button onClick={()=>setCalMode('week')} style={{...btn,padding:'6px 14px',fontSize:10,background:calMode==='week'?'linear-gradient(135deg,'+T.navy+','+T.navyMid+')':'transparent',border:'1px solid '+(calMode==='week'?T.gold:T.border),color:calMode==='week'?T.goldLight:T.textSec}}>📅 Week</button>
         </div>
       </div>
-
-      {/* ── AGENDA VIEW ── */}
       {calMode==='agenda'&&<>
-        {/* Overdue */}
-        {overdue.length>0&&<>
-          <div style={{fontSize:10,letterSpacing:'0.14em',color:T.red,textTransform:'uppercase',fontWeight:700,marginBottom:8,display:'flex',alignItems:'center',gap:6}}>
-            <span style={{width:8,height:8,borderRadius:'50%',background:T.red,display:'inline-block'}}/>Overdue ({overdue.reduce((s,[,items])=>s+items.length,0)} items)
-          </div>
-          {overdue.map(([date,items])=>(
-            <div key={date} style={{marginBottom:12}}>
-              <div style={{fontSize:11,fontWeight:700,color:T.red,marginBottom:4,letterSpacing:'0.06em'}}>
-                {new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · {Math.abs(daysTo(date))}d overdue
-              </div>
-              {items.map(({item,mod,dk},i)=><DayItem key={i} item={item} mod={mod} dk={dk}/>)}
-            </div>
-          ))}
-          <div style={{height:1,background:T.border,margin:'16px 0'}}/>
-        </>}
-
-        {/* Upcoming */}
+        {overdue.length>0&&<><div style={{fontSize:10,letterSpacing:'0.14em',color:T.red,textTransform:'uppercase',fontWeight:700,marginBottom:8,display:'flex',alignItems:'center',gap:6}}><span style={{width:8,height:8,borderRadius:'50%',background:T.red,display:'inline-block'}}/>Overdue ({overdue.reduce((s,[,items])=>s+items.length,0)} items)</div>
+        {overdue.map(([date,items])=>(<div key={date} style={{marginBottom:12}}><div style={{fontSize:11,fontWeight:700,color:T.red,marginBottom:4,letterSpacing:'0.06em'}}>{new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · {Math.abs(daysTo(date))}d overdue</div>{items.map(({item,mod,dk},i)=><DayItem key={i} item={item} mod={mod} dk={dk}/>)}</div>))}
+        <div style={{height:1,background:T.border,margin:'16px 0'}}/></>}
         {upcoming.length===0?<div style={{textAlign:'center',padding:'40px 0',color:T.textSub,fontSize:13}}>No upcoming dated items.</div>:
-          upcoming.map(([date,items])=>{
-            const d=daysTo(date);
-            const isToday=date===todayStr;
-            const isTomorrow=d===1;
-            const label=isToday?'TODAY':isTomorrow?'TOMORROW':new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
-            const subLabel=isToday?'':isTomorrow?'':d<=7?d+'d away':'';
-            return(
-              <div key={date} style={{marginBottom:14}}>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
-                  <div style={{fontSize:12,fontWeight:700,color:isToday?T.red:isTomorrow?T.orange:T.navy,letterSpacing:'0.06em',textTransform:'uppercase'}}>{label}</div>
-                  {subLabel&&<div style={{fontSize:10,color:T.textSub}}>{subLabel}</div>}
-                  {isToday&&<div style={{width:6,height:6,borderRadius:'50%',background:T.red,animation:'pulse 2s infinite'}}/>}
-                </div>
-                {items.map(({item,mod,dk},i)=><DayItem key={i} item={item} mod={mod} dk={dk}/>)}
-              </div>
-            );
-          })
-        }
+        upcoming.map(([date,items])=>{
+          const d=daysTo(date),isToday=date===todayStr,isTomorrow=d===1;
+          const label=isToday?'TODAY':isTomorrow?'TOMORROW':new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+          const subLabel=isToday?'':isTomorrow?'':d<=7?d+'d away':'';
+          return(<div key={date} style={{marginBottom:14}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}><div style={{fontSize:12,fontWeight:700,color:isToday?T.red:isTomorrow?T.orange:T.navy,letterSpacing:'0.06em',textTransform:'uppercase'}}>{label}</div>{subLabel&&<div style={{fontSize:10,color:T.textSub}}>{subLabel}</div>}{isToday&&<div style={{width:6,height:6,borderRadius:'50%',background:T.red,animation:'pulse 2s infinite'}}/>}</div>
+            {items.map(({item,mod,dk},i)=><DayItem key={i} item={item} mod={mod} dk={dk}/>)}
+          </div>);
+        })}
       </>}
-
-      {/* ── WEEK VIEW ── */}
       {calMode==='week'&&<>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
           <button onClick={()=>setWeekOffset(v=>v-1)} style={{...btn,padding:'6px 12px',fontSize:12,background:'transparent',border:'1px solid '+T.border,color:T.textSec}}>← Prev</button>
-          <div style={{fontSize:12,fontWeight:700,color:T.navy,letterSpacing:'0.06em'}}>
-            {monthNames[weekDays[0].getMonth()]} {weekDays[0].getDate()} – {monthNames[weekDays[6].getMonth()]} {weekDays[6].getDate()}, {weekDays[6].getFullYear()}
-          </div>
+          <div style={{fontSize:12,fontWeight:700,color:T.navy,letterSpacing:'0.06em'}}>{monthNames[weekDays[0].getMonth()]} {weekDays[0].getDate()} – {monthNames[weekDays[6].getMonth()]} {weekDays[6].getDate()}, {weekDays[6].getFullYear()}</div>
           <button onClick={()=>setWeekOffset(v=>v+1)} style={{...btn,padding:'6px 12px',fontSize:12,background:'transparent',border:'1px solid '+T.border,color:T.textSec}}>Next →</button>
         </div>
         {weekOffset!==0&&<button onClick={()=>setWeekOffset(0)} style={{...btn,padding:'4px 10px',fontSize:10,background:'transparent',border:'1px solid '+T.border,color:T.textSec,marginBottom:12}}>↩ Back to Today</button>}
         <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:6}}>
           {weekDays.map((day,i)=>{
-            const dStr=dateToStr(day);
-            const isToday=dStr===todayStr;
-            const dayItems=grouped[dStr]||[];
-            return(
-              <div key={i} style={{minHeight:120,background:isToday?'#f0f9f9':T.white,border:'1.5px solid '+(isToday?'#2e8b8b':T.border),borderRadius:8,padding:'6px',overflow:'hidden'}}>
-                <div style={{fontSize:10,fontWeight:700,color:isToday?'#2e8b8b':T.textSec,textTransform:'uppercase',marginBottom:4,textAlign:'center'}}>
-                  {dayNames[day.getDay()]}
-                  <div style={{fontSize:16,fontWeight:700,color:isToday?'#2e8b8b':T.navy,lineHeight:1}}>{day.getDate()}</div>
-                </div>
-                {dayItems.length===0?null:dayItems.map(({item,mod},j)=>{
-                  const f0=mod.fields[0];
-                  const color=modColor(mod);
-                  const od=isOD(item,mod);
-                  return(
-                    <div key={j} onClick={()=>{setView(mod.id);setHighlightId(item.id);setTimeout(()=>setHighlightId(null),2500);}} style={{background:od?T.redPale:color+'22',border:'1px solid '+(od?T.red:color),borderLeft:'3px solid '+(od?T.red:color),borderRadius:4,padding:'3px 5px',marginBottom:3,cursor:'pointer',overflow:'hidden'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:od?T.red:color,textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{mod.icon} {mod.nav}</div>
-                      <div style={{fontSize:10,fontWeight:700,color:T.navy,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{item[f0.k]}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
+            const dStr=dateToStr(day),isToday=dStr===todayStr,dayItems=grouped[dStr]||[];
+            return(<div key={i} style={{minHeight:120,background:isToday?'#f0f9f9':T.white,border:'1.5px solid '+(isToday?'#2e8b8b':T.border),borderRadius:8,padding:'6px',overflow:'hidden'}}>
+              <div style={{fontSize:10,fontWeight:700,color:isToday?'#2e8b8b':T.textSec,textTransform:'uppercase',marginBottom:4,textAlign:'center'}}>{dayNames[day.getDay()]}<div style={{fontSize:16,fontWeight:700,color:isToday?'#2e8b8b':T.navy,lineHeight:1}}>{day.getDate()}</div></div>
+              {dayItems.map(({item,mod},j)=>{
+                const f0=mod.fields[0],color=modColor(mod),od=isOD(item,mod);
+                return(<div key={j} onClick={()=>{setView(mod.id);setHighlightId(item.id);setTimeout(()=>setHighlightId(null),2500);}} style={{background:od?T.redPale:color+'22',border:'1px solid '+(od?T.red:color),borderLeft:'3px solid '+(od?T.red:color),borderRadius:4,padding:'3px 5px',marginBottom:3,cursor:'pointer',overflow:'hidden'}}>
+                  <div style={{fontSize:9,fontWeight:700,color:od?T.red:color,textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{mod.icon} {mod.nav}</div>
+                  <div style={{fontSize:10,fontWeight:700,color:T.navy,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{item[f0.k]}</div>
+                </div>);
+              })}
+            </div>);
           })}
         </div>
       </>}
-
-      {/* Legend */}
       <div style={{marginTop:20,padding:'12px 14px',background:T.white,border:'1px solid '+T.border,borderRadius:8}}>
         <div style={{fontSize:9,letterSpacing:'0.14em',color:T.textSub,textTransform:'uppercase',marginBottom:8}}>Module Legend</div>
         <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-          {MODS.filter(m=>!m.external&&m.fields.length>0&&getDK(m)).map(m=>(
-            <span key={m.id} style={{fontSize:10,padding:'2px 8px',borderRadius:4,background:modColor(m)+'22',color:modColor(m),border:'1px solid '+modColor(m)+'44',fontWeight:700}}>
-              {m.icon} {m.nav}
-            </span>
-          ))}
+          {MODS.filter(m=>!m.external&&m.fields.length>0&&getDK(m)).map(m=>(<span key={m.id} style={{fontSize:10,padding:'2px 8px',borderRadius:4,background:modColor(m)+'22',color:modColor(m),border:'1px solid '+modColor(m)+'44',fontWeight:700}}>{m.icon} {m.nav}</span>))}
         </div>
       </div>
     </div>
@@ -1299,62 +873,28 @@ function App(){
   const[searchQ,setSearchQ]=useState('');
   const[modSearch,setModSearch]=useState('');
   const[sidebarOpen,setSidebarOpen]=useState(false);
-  const[zoom,setZoom]=useState(()=>{
-    const saved=localStorage.getItem('pmtp_zoom');
-    return saved?parseFloat(saved):1;
-  });
-  function changeZoom(z){
-    const clamped=Math.min(1.3,Math.max(0.75,z));
-    setZoom(clamped);
-    localStorage.setItem('pmtp_zoom',clamped);
-  }
-  const[googleTok,setGoogleTok]=useState(()=>{
-  const tok=localStorage.getItem('pmtp_gtok');
-  const exp=parseInt(localStorage.getItem('pmtp_gexp')||'0');
-  return tok&&Date.now()<exp?tok:null;
-});
+  const[zoom,setZoom]=useState(()=>{const saved=localStorage.getItem('pmtp_zoom');return saved?parseFloat(saved):1;});
+  function changeZoom(z){const clamped=Math.min(1.3,Math.max(0.75,z));setZoom(clamped);localStorage.setItem('pmtp_zoom',clamped);}
+  const[googleTok,setGoogleTok]=useState(()=>{const tok=localStorage.getItem('pmtp_gtok');const exp=parseInt(localStorage.getItem('pmtp_gexp')||'0');return tok&&Date.now()<exp?tok:null;});
   const[calLoad,setCalLoad]=useState(null);
-
   const showToast=useCallback((msg,type='ok')=>setToast({msg,type}),[]);
-
   useEffect(()=>{
     sb.auth.getSession().then(({data:{session}})=>{setSession(session);setLoaded(true);});
     const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>setSession(s));
     return()=>subscription.unsubscribe();
   },[]);
-
   useEffect(()=>{if(!session)return;loadItems();},[session]);
-
-  // Auto-refresh session every 50 minutes to prevent timeout
   useEffect(()=>{
     if(!session)return;
     const interval=setInterval(async()=>{
       const{data,error}=await sb.auth.getSession();
       if(error||!data.session){
-        // Try to refresh
         const tok=localStorage.getItem('pmtp_s');
-        if(tok){
-          try{
-            const parsed=JSON.parse(tok);
-            if(parsed.refresh_token){
-              const res=await fetch(window.PMTP.SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token',{
-                method:'POST',
-                headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY},
-                body:JSON.stringify({refresh_token:parsed.refresh_token})
-              });
-              const newSess=await res.json();
-              if(newSess.access_token){
-                localStorage.setItem('pmtp_s',JSON.stringify(newSess));
-                setSession(newSess);
-              }
-            }
-          }catch(e){}
-        }
+        if(tok){try{const parsed=JSON.parse(tok);if(parsed.refresh_token){const res=await fetch(window.PMTP.SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY},body:JSON.stringify({refresh_token:parsed.refresh_token})});const newSess=await res.json();if(newSess.access_token){localStorage.setItem('pmtp_s',JSON.stringify(newSess));setSession(newSess);}}}catch(e){}}
       }
-    },50*60*1000); // every 50 minutes
+    },50*60*1000);
     return()=>clearInterval(interval);
   },[session]);
-
   async function loadItems(){
     setDbLoad(true);
     const{data:rows,error}=await sb.from('dashboard_items').select('*').order('created_at',{ascending:true});
@@ -1363,7 +903,6 @@ function App(){
     for(const row of rows||[]){if(nd[row.module_id])nd[row.module_id].push({...row.item_data,id:row.id,done:row.done});}
     setData(nd);setDbLoad(false);
   }
-
   async function saveItem(){
     if(!modal)return;
     const{mid,item}=modal;
@@ -1377,45 +916,33 @@ function App(){
     if(error){showToast('Could not save.','err');return;}
     const entry={...item_data,id,done:false};
     setData(p=>({...p,[mid]:item?p[mid].map(i=>i.id===id?entry:i):[...p[mid],entry]}));
-    setModal(null);setForm({});
-    showToast(item?'Entry updated.':'Entry added.');
+    setModal(null);setForm({});showToast(item?'Entry updated.':'Entry added.');
   }
-
   async function toggleDone(mid,id,current){
     const{error}=await sb.from('dashboard_items').update({done:!current}).eq('id',id);
     if(error){showToast('Update failed.','err');return;}
     setData(p=>({...p,[mid]:p[mid].map(i=>i.id===id?{...i,done:!current}:i)}));
   }
-
   async function deleteItem(mid,id){
     const{error}=await sb.from('dashboard_items').delete().eq('id',id);
     if(error){showToast('Delete failed.','err');return;}
     setData(p=>({...p,[mid]:p[mid].filter(i=>i.id!==id)}));
     setConfirm(null);showToast('Item removed.');
   }
-
-  function moveItem(fromMid, toMid, item){
-    // Remove from source
+  function moveItem(fromMid,toMid,item){
     setData(prev=>({...prev,[fromMid]:prev[fromMid].filter(i=>i.id!==item.id)}));
-    // Add to destination with escalation note
-    const entry={...item, done:false,
-      movedFrom:fromMid,
-      movedAt:new Date().toISOString(),
-    };
+    const entry={...item,done:false,movedFrom:fromMid,movedAt:new Date().toISOString()};
     setData(prev=>({...prev,[toMid]:[...prev[toMid],entry]}));
-    // Update in DB - delete from old, insert to new
     sb.from('dashboard_items').delete().eq('id',item.id).then(()=>{
       const m=MODS.find(x=>x.id===toMid);
       const item_data={};
       if(m)m.fields.forEach(f=>{if(entry[f.k]!==undefined)item_data[f.k]=entry[f.k];});
-      item_data.movedFrom=fromMid;
-      item_data.movedAt=entry.movedAt;
+      item_data.movedFrom=fromMid;item_data.movedAt=entry.movedAt;
       sb.from('dashboard_items').upsert({id:entry.id,user_id:session.user.id,module_id:toMid,item_data,done:false});
     });
     const labels={newInquiries:'New Inquiries',softFollowups:'Soft Client Follow-Ups',hpFollowups:'Time Sensitive Follow-Ups',hpTrips:'High Priority Trip Actions',components:'Trip Needs Components Added'};
     showToast('Moved to '+labels[toMid]+'.');
   }
-
   async function handleCal(item,mod){
     const dk=getDK(mod);if(!item[dk]){showToast('No date set.','err');return;}
     const d=item[dk].replace(/-/g,'');
@@ -1427,7 +954,6 @@ function App(){
     window.open('https://calendar.google.com/calendar/render?action=TEMPLATE&text='+title+'&dates='+d+'/'+nd2+'&details='+desc,'_blank');
     showToast('Opening Google Calendar — click Save to confirm.');
   }
-
   const active=id=>(data[id]||[]).filter(i=>!i.done);
   const dones=id=>(data[id]||[]).filter(i=>i.done);
   const mod=MODS.find(m=>m.id===view);
@@ -1435,64 +961,44 @@ function App(){
   const urgOpen=MODS.reduce((s,m)=>s+active(m.id).filter(i=>isUG(i,m)||isOD(i,m)).length,0);
   const agentName=session?.user?.user_metadata?.full_name||session?.user?.email?.split('@')[0]||'Agent';
   const today=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric',timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone});
-
   if(!loaded)return<div style={{height:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:T.cream}}><div style={{textAlign:'center',color:T.textSec,fontSize:13,letterSpacing:'0.1em'}}>Loading…</div></div>;
   if(!session)return<AuthScreen onAuth={s=>setSession(s)}/>;
-
   return(
     <div style={{height:'100vh',background:T.cream,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      {/* Header */}
       <div style={{height:72,flexShrink:0,background:'linear-gradient(135deg,'+T.navy+' 0%,'+T.navyMid+' 60%,'+T.navyLight+' 100%)',borderBottom:'2px solid '+T.gold,boxShadow:'0 4px 24px rgba(27,45,58,0.35)',display:'flex',alignItems:'center',padding:'0 24px',position:'relative',zIndex:20}}>
         <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:'linear-gradient(90deg,transparent,'+T.gold+','+T.goldLight+','+T.gold+',transparent)'}}/>
         <button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',padding:'8px',marginRight:8,display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
-            <div style={{width:20,height:2,background:T.goldLight,borderRadius:1}}/>
-            <div style={{width:20,height:2,background:T.goldLight,borderRadius:1}}/>
-            <div style={{width:20,height:2,background:T.goldLight,borderRadius:1}}/>
-          </button>
-          <div style={{flex:1}}>
-            <div className="pmtp-header-sub" style={{fontSize:9,letterSpacing:'0.24em',color:T.goldLight,textTransform:'uppercase',opacity:0.7,marginBottom:3}}>Point Me to Paradise Travel</div>
-            <div className="pmtp-header-title" style={{fontSize:14,fontWeight:700,color:T.white,letterSpacing:'0.18em',textTransform:'uppercase'}}>Agent Operations Dashboard</div>
-          </div>
+          <div style={{width:20,height:2,background:T.goldLight,borderRadius:1}}/><div style={{width:20,height:2,background:T.goldLight,borderRadius:1}}/><div style={{width:20,height:2,background:T.goldLight,borderRadius:1}}/>
+        </button>
+        <div style={{flex:1}}>
+          <div className="pmtp-header-sub" style={{fontSize:9,letterSpacing:'0.24em',color:T.goldLight,textTransform:'uppercase',opacity:0.7,marginBottom:3}}>Point Me to Paradise Travel</div>
+          <div className="pmtp-header-title" style={{fontSize:14,fontWeight:700,color:T.white,letterSpacing:'0.18em',textTransform:'uppercase'}}>Agent Operations Dashboard</div>
+        </div>
         <div style={{display:'flex',alignItems:'center',gap:12}}>
+          {window.PMTP.KNOWLEDGE_BASE_URL&&<a href={window.PMTP.KNOWLEDGE_BASE_URL} target="_blank" style={{...btn,padding:'5px 12px',fontSize:10,background:'rgba(117,175,177,0.15)',border:'1px solid '+T.teal,color:T.tealLight,textDecoration:'none'}}>📚 Knowledge Base</a>}
           {urgOpen>0&&<div style={{background:'rgba(192,57,43,0.28)',border:'1px solid rgba(192,57,43,0.5)',borderRadius:20,padding:'4px 14px',fontSize:10,color:'#ff9a8a',letterSpacing:'0.1em',textTransform:'uppercase',fontWeight:700,animation:'pulse 2s infinite'}}>⚡ {urgOpen} Time Sensitive</div>}
           {totalOpen>0&&<div style={{background:'rgba(201,168,76,0.15)',border:'1px solid rgba(201,168,76,0.3)',borderRadius:20,padding:'4px 14px',fontSize:10,color:T.goldLight,letterSpacing:'0.1em',textTransform:'uppercase',fontWeight:700}}>{totalOpen} Open</div>}
           <div style={{width:1,height:22,background:'rgba(201,168,76,0.25)'}}/>
-          <button onClick={()=>{
-  if(window.google&&window.google.accounts){
-    const tc=window.google.accounts.oauth2.initTokenClient({
-      client_id:window.PMTP.GOOGLE_CLIENT_ID,
-      scope:'https://www.googleapis.com/auth/calendar.events',
-      callback:(resp)=>{if(resp.access_token){localStorage.setItem('pmtp_gtok',resp.access_token);localStorage.setItem('pmtp_gexp',Date.now()+(resp.expires_in-60)*1000);setGoogleTok(resp.access_token);showToast('Google Calendar connected! ✓');}}
-    });tc.requestAccessToken();
-  }else{showToast('Google Sign-In not loaded yet. Try again.','err');}
-}} style={{...btn,padding:'5px 12px',fontSize:10,background:googleTok?'rgba(117,175,177,0.2)':'rgba(201,168,76,0.12)',border:'1px solid '+(googleTok?T.teal:T.gold),color:googleTok?T.tealLight:T.goldLight,display:'flex',alignItems:'center',gap:6}}>
-  📅 {googleTok?'Cal ✓':'Connect Cal'}
-</button>
-<div style={{width:1,height:22,background:'rgba(201,168,76,0.25)'}}/>
-<div style={{display:'flex',alignItems:'center',gap:6,marginRight:8,background:'rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 8px',border:'1px solid rgba(201,168,76,0.2)'}}>
-              <button onClick={()=>changeZoom(zoom-0.05)} style={{background:'none',border:'none',color:T.goldLight,cursor:'pointer',fontSize:16,lineHeight:1,padding:'0 3px'}}>−</button>
-              <span style={{fontSize:10,color:T.goldLight,fontFamily:"'Georgia',serif",letterSpacing:'0.06em',minWidth:30,textAlign:'center'}}>{Math.round(zoom*100)}%</span>
-              <button onClick={()=>changeZoom(zoom+0.05)} style={{background:'none',border:'none',color:T.goldLight,cursor:'pointer',fontSize:16,lineHeight:1,padding:'0 3px'}}>+</button>
-            </div>
-            <div style={{fontSize:11,color:T.goldLight,letterSpacing:'0.14em',textTransform:'uppercase'}}>{agentName}</div>
+          <button onClick={()=>{if(window.google&&window.google.accounts){const tc=window.google.accounts.oauth2.initTokenClient({client_id:window.PMTP.GOOGLE_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events',callback:(resp)=>{if(resp.access_token){localStorage.setItem('pmtp_gtok',resp.access_token);localStorage.setItem('pmtp_gexp',Date.now()+(resp.expires_in-60)*1000);setGoogleTok(resp.access_token);showToast('Google Calendar connected! ✓');}}});tc.requestAccessToken();}else{showToast('Google Sign-In not loaded yet. Try again.','err');}}} style={{...btn,padding:'5px 12px',fontSize:10,background:googleTok?'rgba(117,175,177,0.2)':'rgba(201,168,76,0.12)',border:'1px solid '+(googleTok?T.teal:T.gold),color:googleTok?T.tealLight:T.goldLight,display:'flex',alignItems:'center',gap:6}}>📅 {googleTok?'Cal ✓':'Connect Cal'}</button>
+          <div style={{width:1,height:22,background:'rgba(201,168,76,0.25)'}}/>
+          <div style={{display:'flex',alignItems:'center',gap:6,marginRight:8,background:'rgba(255,255,255,0.08)',borderRadius:6,padding:'3px 8px',border:'1px solid rgba(201,168,76,0.2)'}}>
+            <button onClick={()=>changeZoom(zoom-0.05)} style={{background:'none',border:'none',color:T.goldLight,cursor:'pointer',fontSize:16,lineHeight:1,padding:'0 3px'}}>−</button>
+            <span style={{fontSize:10,color:T.goldLight,fontFamily:"'Georgia',serif",letterSpacing:'0.06em',minWidth:30,textAlign:'center'}}>{Math.round(zoom*100)}%</span>
+            <button onClick={()=>changeZoom(zoom+0.05)} style={{background:'none',border:'none',color:T.goldLight,cursor:'pointer',fontSize:16,lineHeight:1,padding:'0 3px'}}>+</button>
+          </div>
+          <div style={{fontSize:11,color:T.goldLight,letterSpacing:'0.14em',textTransform:'uppercase'}}>{agentName}</div>
           <button onClick={async()=>{await sb.auth.signOut();setSession(null);setData(Object.fromEntries(MODS.map(m=>[m.id,[]])));}} style={{...btn,padding:'4px 10px',fontSize:9,background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.15)',color:T.textSub}}>Sign Out</button>
         </div>
       </div>
-
-      {/* Body */}
       <div style={{display:'flex',flex:1,overflow:'hidden'}}>
-        {/* Mobile overlay */}
         <div className={'pmtp-overlay'+(sidebarOpen?' open':'')} onClick={()=>setSidebarOpen(false)}/>
-        {/* Sidebar */}
         <div className={'pmtp-sidebar'+(sidebarOpen?' open':'')} style={{width:280,background:'linear-gradient(180deg,'+T.navyMid+' 0%,'+T.navy+' 100%)',borderRight:'1px solid rgba(201,168,76,0.12)',overflowY:'auto',flexShrink:0,paddingTop:10,paddingBottom:24}}>
           <button onClick={()=>{setView('home');setShowDone(false);setModSearch('');setSidebarOpen(false);}} style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%',padding:'11px 16px 11px 13px',background:view==='home'?'rgba(201,168,76,0.14)':'transparent',border:'none',borderLeft:view==='home'?'3px solid '+T.gold:'3px solid transparent',cursor:'pointer'}}>
             <span style={{fontSize:10,letterSpacing:'0.16em',color:view==='home'?T.goldLight:T.textSub,textTransform:'uppercase',fontWeight:700,fontFamily:"'Georgia',serif"}}>⊞  Overview</span>
           </button>
           <div style={{height:1,background:'rgba(201,168,76,0.12)',margin:'6px 14px'}}/>
           {MODS.filter(m=>!m.external).map(m=>{
-            const cnt=active(m.id).length;
-            const urg=active(m.id).filter(i=>isUG(i,m)||isOD(i,m)).length;
-            const isA=view===m.id;
+            const cnt=active(m.id).length,urg=active(m.id).filter(i=>isUG(i,m)||isOD(i,m)).length,isA=view===m.id;
             return<button key={m.id} onClick={()=>{if(m.external){window.open(m.external,'_blank');}else{setView(m.id);setShowDone(false);setModSearch('');}setSidebarOpen(false);}} style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%',padding:'10px 14px 10px 12px',background:isA?'rgba(201,168,76,0.14)':'transparent',border:'none',borderLeft:isA?'3px solid '+T.gold:'3px solid transparent',cursor:'pointer'}}>
               <span style={{fontSize:11,letterSpacing:'0.06em',color:isA?T.goldLight:T.textSub,textTransform:'uppercase',fontWeight:700,textAlign:'left',lineHeight:1.45,fontFamily:"'Georgia',serif",whiteSpace:'normal',wordBreak:'break-word'}}>{m.icon}  {m.nav||m.label}</span>
               <div style={{display:'flex',gap:4,alignItems:'center'}}>
@@ -1502,10 +1008,8 @@ function App(){
             </button>;
           })}
         </div>
-
-        {/* Content */}
         <div className='pmtp-content' style={{flex:1,overflowY:'auto'}}>
-          {view==='commissions'?<CommissionView session={session} sb={sb} showToast={showToast}/>:view==='calendar'?<CalendarView active={active} MODS={MODS} highlightId={highlightId} setHighlightId={setHighlightId} isOD={isOD} isUG={isUG} daysTo={daysTo} fmtDate={fmtDate} getDK={getDK} setView={setView} T={T} btn={btn}/>:view==='checklists'?<ChecklistView session={session} showToast={showToast} moveItem={moveItem}/>:view==='home'?(
+          {view==='commissions'?<CommissionView session={session} sb={sb} showToast={showToast}/>:view==='calendar'?<CalendarView active={active} MODS={MODS} highlightId={highlightId} setHighlightId={setHighlightId} isOD={isOD} isUG={isUG} daysTo={daysTo} fmtDate={fmtDate} getDK={getDK} setView={setView} T={T} btn={btn}/>:view==='checklists'?<ChecklistView session={session} showToast={showToast}/>:view==='home'?(
             <div style={{padding:'26px 30px',overflowY:'auto',height:'100%'}}>
               <div style={{marginBottom:24}}>
                 <div style={{fontSize:10,letterSpacing:'0.18em',color:T.textSub,textTransform:'uppercase',marginBottom:4}}>{today}</div>
@@ -1518,65 +1022,43 @@ function App(){
                 {searchQ.trim().length>1&&(()=>{
                   const q=searchQ.trim().toLowerCase();
                   const results=[];
-                  MODS.filter(m=>!m.external&&m.fields.length>0).forEach(m=>{
-                    active(m.id).forEach(item=>{
-                      const vals=Object.values(item).filter(v=>typeof v==='string').join(' ').toLowerCase();
-                      if(vals.includes(q))results.push({item,mod:m});
-                    });
-                  });
-                  return(
-                    <div style={{marginBottom:20}}>
-                      <div style={{fontSize:10,letterSpacing:'0.14em',color:T.textSec,textTransform:'uppercase',marginBottom:8}}>{results.length} result{results.length!==1?'s':''} for "{searchQ}"</div>
-                      {results.length===0?(<div style={{background:T.white,border:'1px solid '+T.border,borderRadius:8,padding:'20px',textAlign:'center',color:T.textSub,fontSize:13}}>No results found.</div>):(
-                        <div style={{display:'flex',flexDirection:'column',gap:5}}>
-                          {results.map(({item,mod},idx)=>{
-                            const f0=mod.fields[0];
-                            const f1=mod.fields[1];
-                            const aF=mod.fields.find(f=>['action','reason','components','task','need','subject'].includes(f.k));
-                            const dF=mod.fields.find(f=>f.k==='dueDate')||mod.fields.find(f=>f.t==='date');
-                            const od=isOD(item,mod);
-                            return(
-                              <div key={idx} onClick={()=>{setView(mod.id);setSearchQ('');}} style={{background:T.white,border:'1px solid '+(od?T.red:'#2e8b8b'),borderRadius:8,padding:'9px 13px',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
-                                <div style={{flex:1,minWidth:0}}>
-                                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2,flexWrap:'wrap'}}>
-                                    <span style={{fontSize:9,letterSpacing:'0.1em',color:T.white,background:od?T.red:'#2e8b8b',padding:'2px 6px',borderRadius:3,textTransform:'uppercase',fontWeight:700}}>{mod.icon} {mod.nav||mod.label}</span>
-                                  </div>
-                                  <div style={{fontWeight:700,fontSize:13,color:T.navy}}>{item[f0.k]||'—'}{f1&&item[f1.k]?' · '+item[f1.k]:''}</div>
-                                  {aF&&item[aF.k]&&<div style={{fontSize:11,color:T.textSec,marginTop:1}}>{item[aF.k].slice(0,80)}{item[aF.k].length>80?'...':''}</div>}
-                                </div>
-                                {dF&&item[dF.k]&&<DueBadge d={item[dF.k]}/>}
-                                <span style={{color:T.textSub,fontSize:12}}>→</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
+                  MODS.filter(m=>!m.external&&m.fields.length>0).forEach(m=>{active(m.id).forEach(item=>{const vals=Object.values(item).filter(v=>typeof v==='string').join(' ').toLowerCase();if(vals.includes(q))results.push({item,mod:m});});});
+                  return(<div style={{marginBottom:20}}>
+                    <div style={{fontSize:10,letterSpacing:'0.14em',color:T.textSec,textTransform:'uppercase',marginBottom:8}}>{results.length} result{results.length!==1?'s':''} for "{searchQ}"</div>
+                    {results.length===0?(<div style={{background:T.white,border:'1px solid '+T.border,borderRadius:8,padding:'20px',textAlign:'center',color:T.textSub,fontSize:13}}>No results found.</div>):(
+                      <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                        {results.map(({item,mod},idx)=>{
+                          const f0=mod.fields[0],f1=mod.fields[1];
+                          const aF=mod.fields.find(f=>['action','reason','components','task','need','subject'].includes(f.k));
+                          const dF=mod.fields.find(f=>f.k==='dueDate')||mod.fields.find(f=>f.t==='date');
+                          const od=isOD(item,mod);
+                          return(<div key={idx} onClick={()=>{setView(mod.id);setSearchQ('');}} style={{background:T.white,border:'1px solid '+(od?T.red:'#2e8b8b'),borderRadius:8,padding:'9px 13px',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2,flexWrap:'wrap'}}><span style={{fontSize:9,letterSpacing:'0.1em',color:T.white,background:od?T.red:'#2e8b8b',padding:'2px 6px',borderRadius:3,textTransform:'uppercase',fontWeight:700}}>{mod.icon} {mod.nav||mod.label}</span></div>
+                              <div style={{fontWeight:700,fontSize:13,color:T.navy}}>{item[f0.k]||'—'}{f1&&item[f1.k]?' · '+item[f1.k]:''}</div>
+                              {aF&&item[aF.k]&&<div style={{fontSize:11,color:T.textSec,marginTop:1}}>{item[aF.k].slice(0,80)}{item[aF.k].length>80?'...':''}</div>}
+                            </div>
+                            {dF&&item[dF.k]&&<DueBadge d={item[dF.k]}/>}
+                            <span style={{color:T.textSub,fontSize:12}}>→</span>
+                          </div>);
+                        })}
+                      </div>
+                    )}
+                  </div>);
                 })()}
                 <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-                  <div style={{background:T.white,border:'1px solid '+T.border,borderRadius:8,padding:'10px 20px',display:'flex',alignItems:'center',gap:10,boxShadow:'0 2px 10px rgba(27,45,58,0.06)'}}>
-                    <span style={{fontSize:24,fontWeight:700,color:totalOpen>0?T.navy:T.textSub}}>{totalOpen}</span>
-                    <span style={{fontSize:10,color:T.textSec,letterSpacing:'0.14em',textTransform:'uppercase'}}>Open Items</span>
-                  </div>
-                  {urgOpen>0&&<div style={{background:T.redPale,border:'1px solid #f5c2c0',borderRadius:8,padding:'10px 20px',display:'flex',alignItems:'center',gap:10}}>
-                    <span style={{fontSize:24,fontWeight:700,color:T.red}}>{urgOpen}</span>
-                    <span style={{fontSize:10,color:T.red,letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>⚡ Time Sensitive / Overdue</span>
-                  </div>}
+                  <div style={{background:T.white,border:'1px solid '+T.border,borderRadius:8,padding:'10px 20px',display:'flex',alignItems:'center',gap:10,boxShadow:'0 2px 10px rgba(27,45,58,0.06)'}}><span style={{fontSize:24,fontWeight:700,color:totalOpen>0?T.navy:T.textSub}}>{totalOpen}</span><span style={{fontSize:10,color:T.textSec,letterSpacing:'0.14em',textTransform:'uppercase'}}>Open Items</span></div>
+                  {urgOpen>0&&<div style={{background:T.redPale,border:'1px solid #f5c2c0',borderRadius:8,padding:'10px 20px',display:'flex',alignItems:'center',gap:10}}><span style={{fontSize:24,fontWeight:700,color:T.red}}>{urgOpen}</span><span style={{fontSize:10,color:T.red,letterSpacing:'0.14em',textTransform:'uppercase',fontWeight:700}}>⚡ Time Sensitive / Overdue</span></div>}
                   {totalOpen===0&&<div style={{background:'#eaf6f0',border:'1px solid #b8dece',borderRadius:8,padding:'10px 20px',display:'flex',alignItems:'center',gap:8}}><span style={{fontSize:14,fontWeight:700,color:T.green}}>✓ All Clear</span></div>}
-              {!searchQ&&urgOpen>0&&<button onClick={()=>setCriticalOnly(v=>!v)} style={{fontFamily:"'Georgia',serif",cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em',fontWeight:700,borderRadius:6,border:'none',fontSize:11,padding:'10px 18px',background:criticalOnly?T.red:'transparent',border:'1px solid '+(criticalOnly?T.red:T.border),color:criticalOnly?T.white:T.textSec}}>
-                {criticalOnly?'Showing Critical Only  x':'Show Critical Only'}
-              </button>}
+                  {!searchQ&&urgOpen>0&&<button onClick={()=>setCriticalOnly(v=>!v)} style={{fontFamily:"'Georgia',serif",cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em',fontWeight:700,borderRadius:6,fontSize:11,padding:'10px 18px',background:criticalOnly?T.red:'transparent',border:'1px solid '+(criticalOnly?T.red:T.border),color:criticalOnly?T.white:T.textSec}}>{criticalOnly?'Showing Critical Only  x':'Show Critical Only'}</button>}
                 </div>
               </div>
               <div style={{display:searchQ.trim()?'none':'grid',gridTemplateColumns:'repeat(auto-fill,minmax(258px,1fr))',gap:13}}>
                 {MODS.filter(m=>!m.external).filter(m=>!criticalOnly||active(m.id).some(i=>isUG(i,m)||isOD(i,m))).map(m=>{
-                  const items=active(m.id);
-                  const urg=items.filter(i=>isUG(i,m)||isOD(i,m));
+                  const items=active(m.id),urg=items.filter(i=>isUG(i,m)||isOD(i,m));
                   const nextDue=items.filter(i=>i.dueDate||i.travelDate).sort((a,b)=>(a.dueDate||a.travelDate||'').localeCompare(b.dueDate||b.travelDate||''))[0];
                   const isH=hovCard===m.id;
-                  return<div key={m.id} onClick={()=>{if(m.external){window.open(m.external,'_blank');}else{setView(m.id);setShowDone(false);setModSearch('');}setSidebarOpen(false);}} onMouseEnter={()=>setHovCard(m.id)} onMouseLeave={()=>setHovCard(null)}
-                    style={{background:T.white,cursor:'pointer',borderRadius:12,overflow:'hidden',border:'1px solid '+(items.filter(i=>isOD(i,m)).length>0?T.red:urg.length>0?T.tealDeep:isH?T.gold:T.border),boxShadow:items.filter(i=>isOD(i,m)).length>0?'0 4px 20px rgba(192,57,43,0.15)':urg.length>0?'0 4px 20px rgba(90,158,158,0.2)':isH?'0 8px 28px rgba(27,45,58,0.13)':'0 2px 12px rgba(27,45,58,0.06)',transition:'all 0.18s'}}>
+                  return<div key={m.id} onClick={()=>{if(m.external){window.open(m.external,'_blank');}else{setView(m.id);setShowDone(false);setModSearch('');}setSidebarOpen(false);}} onMouseEnter={()=>setHovCard(m.id)} onMouseLeave={()=>setHovCard(null)} style={{background:T.white,cursor:'pointer',borderRadius:12,overflow:'hidden',border:'1px solid '+(items.filter(i=>isOD(i,m)).length>0?T.red:urg.length>0?T.tealDeep:isH?T.gold:T.border),boxShadow:items.filter(i=>isOD(i,m)).length>0?'0 4px 20px rgba(192,57,43,0.15)':urg.length>0?'0 4px 20px rgba(90,158,158,0.2)':isH?'0 8px 28px rgba(27,45,58,0.13)':'0 2px 12px rgba(27,45,58,0.06)',transition:'all 0.18s'}}>
                     <div style={{height:3,background:items.filter(i=>isOD(i,m)).length>0?'linear-gradient(90deg,'+T.red+','+T.orange+')':urg.length>0?'linear-gradient(90deg,'+T.tealDeep+','+T.teal+')':'linear-gradient(90deg,'+m.accent+','+T.teal+')'}}/>
                     <div style={{padding:'15px 18px'}}>
                       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:10}}>
@@ -1615,7 +1097,7 @@ function App(){
                 </div>
                 {active(mod.id).length===0&&<div style={{textAlign:'center',padding:'64px 0',color:T.textSub}}><div style={{fontSize:34,marginBottom:14}}>✨</div><div style={{fontSize:13,letterSpacing:'0.1em'}}>No active items — all caught up.</div></div>}
                 <div style={{display:'flex',flexDirection:'column',gap:5}}>
-                  {[...active(mod.id)].sort((a,b)=>{const dk=getDK(mod);const ad=a[dk]||'',bd=b[dk]||'';if(!ad&&!bd)return 0;if(!ad)return 1;if(!bd)return -1;return ad.localeCompare(bd);}).filter(item=>!modSearch.trim()||Object.values(item).filter(v=>typeof v==='string').join(' ').toLowerCase().includes(modSearch.trim().toLowerCase())).map(item=>(
+                  {[...active(mod.id)].sort((a,b)=>{const dk=getDK(mod);const ad=a[dk]||'',bd=b[dk]||'';if(!ad&&!bd)return 0;if(!ad)return 1;if(!bd)return-1;return ad.localeCompare(bd);}).filter(item=>!modSearch.trim()||Object.values(item).filter(v=>typeof v==='string').join(' ').toLowerCase().includes(modSearch.trim().toLowerCase())).map(item=>(
                     <ItemCard key={item.id} item={item} mid={mod.id} highlightId={highlightId}
                       onEdit={()=>{setModal({mid:mod.id,item});setForm({...item});setFormErr(false);}}
                       onToggle={()=>toggleDone(mod.id,item.id,item.done)}
@@ -1626,19 +1108,13 @@ function App(){
                 {dones(mod.id).length>0&&<div style={{marginTop:24}}>
                   <button onClick={()=>setShowDone(v=>!v)} style={{...btn,padding:'6px 14px',fontSize:10,background:'transparent',border:'1px solid '+T.border,color:T.textSec,marginBottom:10}}>{showDone?'▲':'▼'} Completed ({dones(mod.id).length})</button>
                   {showDone&&<div style={{display:'flex',flexDirection:'column',gap:6}}>
-                    {dones(mod.id).map(item=>(
-                      <div key={item.id} style={{background:'#f5f5f5',border:'1px solid '+T.border,borderRadius:8,padding:'10px 15px',display:'flex',alignItems:'center',justifyContent:'space-between',opacity:0.65}}>
-                        <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                          <span style={{fontSize:12,color:T.green,fontWeight:700}}>✓</span>
-                          <span style={{fontSize:13,textDecoration:'line-through',color:T.textSub}}>{item[mod.fields[0].k]}</span>
-                          {mod.fields[1]&&item[mod.fields[1].k]&&<span style={{fontSize:11,color:T.textSub}}>{item[mod.fields[1].k]}</span>}
-                        </div>
-                        <div style={{display:'flex',gap:5}}>
-                          <button onClick={()=>toggleDone(mod.id,item.id,item.done)} style={{...btn,padding:'3px 9px',fontSize:10,background:'transparent',border:'1px solid '+T.border,color:T.textSec}}>Undo</button>
-                          <button onClick={()=>setConfirm({msg:'Remove this item?',onConfirm:()=>deleteItem(mod.id,item.id)})} style={{...btn,padding:'3px 8px',fontSize:10,background:'transparent',border:'1px solid #fcc',color:T.red}}>✕</button>
-                        </div>
+                    {dones(mod.id).map(item=>(<div key={item.id} style={{background:'#f5f5f5',border:'1px solid '+T.border,borderRadius:8,padding:'10px 15px',display:'flex',alignItems:'center',justifyContent:'space-between',opacity:0.65}}>
+                      <div style={{display:'flex',gap:8,alignItems:'center'}}><span style={{fontSize:12,color:T.green,fontWeight:700}}>✓</span><span style={{fontSize:13,textDecoration:'line-through',color:T.textSub}}>{item[mod.fields[0].k]}</span>{mod.fields[1]&&item[mod.fields[1].k]&&<span style={{fontSize:11,color:T.textSub}}>{item[mod.fields[1].k]}</span>}</div>
+                      <div style={{display:'flex',gap:5}}>
+                        <button onClick={()=>toggleDone(mod.id,item.id,item.done)} style={{...btn,padding:'3px 9px',fontSize:10,background:'transparent',border:'1px solid '+T.border,color:T.textSec}}>Undo</button>
+                        <button onClick={()=>setConfirm({msg:'Remove this item?',onConfirm:()=>deleteItem(mod.id,item.id)})} style={{...btn,padding:'3px 8px',fontSize:10,background:'transparent',border:'1px solid #fcc',color:T.red}}>✕</button>
                       </div>
-                    ))}
+                    </div>))}
                   </div>}
                 </div>}
               </>}
@@ -1646,9 +1122,7 @@ function App(){
           )}
         </div>
       </div>
-
       <AddModal modal={modal} setModal={setModal} form={form} setForm={setForm} formErr={formErr} setFormErr={setFormErr} onSave={saveItem}/>
-      
       {confirm&&<div onClick={()=>setConfirm(null)} style={{position:'fixed',inset:0,background:'rgba(27,45,58,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200,padding:16}}>
         <div onClick={e=>e.stopPropagation()} style={{background:T.white,borderRadius:12,padding:'28px 32px',maxWidth:380,width:'100%',textAlign:'center',boxShadow:'0 20px 60px rgba(27,45,58,0.25)'}}>
           <div style={{fontSize:14,color:T.text,lineHeight:1.6,marginBottom:24}}>{confirm.msg}</div>
@@ -1658,7 +1132,6 @@ function App(){
           </div>
         </div>
       </div>}
-      
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     </div>
   );
