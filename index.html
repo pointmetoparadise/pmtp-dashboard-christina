@@ -156,6 +156,7 @@ const btn={fontFamily:"'Georgia',serif",cursor:'pointer',textTransform:'uppercas
 /* ── Module config ── */
 const MODS=[
   {id:'hpTrips',nav:'High Priority Actions',label:'High Priority Trip Actions',short:'HP Trips',icon:'🚨',accent:T.red,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'trip',l:'Trip / Booking #',t:'text'},{k:'action',l:'Action Needed',t:'area',req:true},{k:'dueDate',l:'Due Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
+  {id:'hpFollowups',nav:'Time Sensitive Follow-Ups',label:'Time Sensitive Client Follow-Ups',short:'Time Sensitive',icon:'⚡',accent:T.orange,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'phone',l:'Phone',t:'text'},{k:'email',l:'Email',t:'text'},{k:'trip',l:'Trip / Booking #',t:'text'},{k:'reason',l:'Reason / Action Needed',t:'area',req:true},{k:'dueDate',l:'Follow-Up Date',t:'date',req:true},{k:'notes',l:'Notes',t:'area'}]},
   {id:'admin',nav:'Admin Tasks',label:'Admin Jobs',short:'Admin Jobs',icon:'✅',accent:T.green,fields:[{k:'task',l:'Task',t:'text',req:true},{k:'priority',l:'Priority',t:'select',opts:['High','Medium','Low']},{k:'dueDate',l:'Due Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
   {id:'agentRequests',nav:'Agent-Agent Requests',label:'Agent to Agent Requests',short:'Agent Requests',icon:'🤝',accent:'#9b59b6',fields:[ {k:'requestingAgent',l:'Requesting Agent',t:'text',req:true}, {k:'client',l:'Client Name',t:'text',req:true}, {k:'trip',l:'Trip / Booking #',t:'text'}, {k:'requestType',l:'Request Type',t:'select',opts:['Co-Work Trip','Quote Assistance','Booking Help','Client Coverage','Research Help','Other']}, {k:'details',l:'What They Need',t:'area',req:true}, {k:'dueDate',l:'Due Date',t:'date'}, {k:'commission',l:'Commission Split (if any)',t:'text'}, {k:'status',l:'Status',t:'select',opts:['New Request','In Progress','Waiting on Agent','Completed']}, {k:'notes',l:'Notes',t:'area'}, ]},
   {id:'calendar',nav:'Calendar / Agenda',label:'Calendar / Agenda',icon:'📅',accent:'#2e8b8b',fields:[]},
@@ -170,7 +171,6 @@ const MODS=[
   {id:'softFollowups',nav:'Soft Follow-Ups',label:'Soft Client Follow-Ups',short:'Soft Follow-Ups',icon:'💬',accent:T.teal,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'phone',l:'Phone',t:'text'},{k:'email',l:'Email',t:'text'},{k:'type',l:'Type',t:'select',opts:['Question About Booked Trip','Change Request','Proposal Pending','Awaiting Response','Nurturing Lead','Other']},{k:'trip',l:'Trip / Destination',t:'text'},{k:'need',l:'What They Need',t:'area',req:true},{k:'inquiryDate',l:'Date They Reached Out',t:'date'},{k:'lastContact',l:'Last Contact Date',t:'date'},{k:'dueDate',l:'Next Action Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
   {id:'supplierInteractions',nav:'Supplier Interactions',label:'Supplier Interactions',icon:'📡',accent:'#8e44ad',fields:[ {k:'supplier',l:'Supplier Name',t:'text',req:true}, {k:'supplierType',l:'Supplier Type',t:'select',opts:['Hotel','Cruise Line','Tour Operator','DMC','Insurance','Transfer','Air','Other']}, {k:'bdm',l:'BDM Name',t:'text'}, {k:'bdmPhone',l:'BDM Phone',t:'text'}, {k:'bdmEmail',l:'BDM Email',t:'text'}, {k:'purpose',l:'Purpose',t:'select',opts:['Client Booking','Agency Business','Personal Business','BDM Relationship']}, {k:'client',l:'Client Name (if applicable)',t:'text'}, {k:'trip',l:'Trip / Booking # (if applicable)',t:'text'}, {k:'interactionType',l:'Interaction Type',t:'select',opts:['Quote Request','Follow-Up','Issue','Dispute','FAM Request','Contract','Override','Commission','General']}, {k:'subject',l:'Subject / What It\'s About',t:'area',req:true}, {k:'interactionDate',l:'Date of Interaction',t:'date'}, {k:'dueDate',l:'Response Due Date',t:'date'}, {k:'status',l:'Status',t:'select',opts:['Pending','In Progress','Waiting on Supplier','Resolved','Closed']}, {k:'notes',l:'Notes',t:'area'}, ]},
   {id:'vault',nav:'Password Vault',label:'Password Vault',icon:'🔐',accent:'#5a4a8a',fields:[]},
-  {id:'hpFollowups',nav:'Time Sensitive Follow-Ups',label:'Time Sensitive Client Follow-Ups',short:'Time Sensitive',icon:'⚡',accent:T.orange,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'phone',l:'Phone',t:'text'},{k:'email',l:'Email',t:'text'},{k:'trip',l:'Trip / Booking #',t:'text'},{k:'reason',l:'Reason / Action Needed',t:'area',req:true},{k:'dueDate',l:'Follow-Up Date',t:'date',req:true},{k:'notes',l:'Notes',t:'area'}]},
   {id:'chat',nav:'Team Chat',label:'Team Chat',icon:'💬',accent:'#2e8b8b',fields:[]}
 ];
 
@@ -875,8 +875,9 @@ function VaultView({session,sb,showToast}){
 function QuickAccessBar(){
   const[open,setOpen]=React.useState(true);
   const LINKS=[
-    {icon:'🤝',label:'Co-Work Agreement',url:'https://drive.google.com/file/d/1D_3tBDe-oHSQYhq-kd6lk9lY2smHZmsI/copy'},
     {icon:'🚀',label:'Launchboard',url:'https://pmtp-launchboard.vercel.app/'},
+    {icon:'🏠',label:'PMTP Portal',url:'https://eliteparadiseplanners.com/communities/groups/pmtp-paradise-planners/private-group'},
+    {icon:'🤝',label:'Co-Work Agreement',url:'https://drive.google.com/file/d/1D_3tBDe-oHSQYhq-kd6lk9lY2smHZmsI/copy'},
     {icon:'📋',label:'FIT Trip',url:'https://docs.google.com/spreadsheets/d/11iTKoAtr6EEo9yqMYUSeTNFCEKkRsTfb/copy'},
     {icon:'⚡',label:'Gamma',url:'https://gamma.app/'},
     {icon:'📂',label:'Google Drive',url:'https://workspace.google.com/products/drive/'},
@@ -884,7 +885,6 @@ function QuickAccessBar(){
     {icon:'📊',label:'Montis Pro',url:'https://montis.pro/stream/'},
     {icon:'➕',label:'New Supplier',url:'https://docs.google.com/forms/d/e/1FAIpQLSewvOqT94wfQ7s-nVIdKT5TWRFRlcKSYs_78-IdidjxGto5NQ/viewform?usp=header'},
     {icon:'📖',label:'NotebookLM',url:'https://notebooklm.google.com/?pli=1'},
-    {icon:'🏠',label:'PMTP Portal',url:'https://eliteparadiseplanners.com/communities/groups/pmtp-paradise-planners/private-group'},
     {icon:'🗂️',label:'Supplier Dir',url:'https://pmtp-supplier-directory.vercel.app/'},
     {icon:'🖊',label:'Supplier Reg',url:'https://docs.google.com/forms/d/e/1FAIpQLSdxTMUIRuOhTa0TeXp1CMvyZR3TMdT8BtXh9UJjHNkokMI0og/viewform?usp=header'},
     {icon:'✈️',label:'Travel Joy',url:'https://traveljoy.com/users/sign_in'},
@@ -1409,8 +1409,8 @@ function App(){
           <div style={{height:1,background:'rgba(201,168,76,0.12)',margin:'6px 14px'}}/>
           {MODS.filter(m=>!m.external).map(m=>{
             const cnt=active(m.id).length,urg=active(m.id).filter(i=>isUG(i,m)||isOD(i,m)).length,isA=view===m.id;
-            const divBefore=(m.id==='admin'||m.id==='hpFollowups');
-            return<React.Fragment key={m.id}>{divBefore&&<div style={{height:'1px',background:'rgba(255,255,255,0.12)',margin:'5px 12px'}}/>}<button onClick={()=>{if(m.external){window.open(m.external,'_blank');}else{setView(m.id);setShowDone(false);setModSearch('');}setSidebarOpen(false);}} style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%',padding:'10px 14px 10px 12px',background:isA?'rgba(201,168,76,0.14)':'transparent',border:'none',borderLeft:isA?'3px solid '+T.gold:'3px solid transparent',cursor:'pointer'}}>
+            const divBefore=(m.id==='admin'||m.id==='chat');
+            return<React.Fragment key={m.id}>{divBefore&&<div style={{height:'2px',background:'linear-gradient(90deg,transparent,#2e8b8b,#c9a84c,#2e8b8b,transparent)',margin:'8px 10px',borderRadius:'1px',opacity:0.7}}/>}<button onClick={()=>{if(m.external){window.open(m.external,'_blank');}else{setView(m.id);setShowDone(false);setModSearch('');}setSidebarOpen(false);}} style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%',padding:'10px 14px 10px 12px',background:isA?'rgba(201,168,76,0.14)':'transparent',border:'none',borderLeft:isA?'3px solid '+T.gold:'3px solid transparent',cursor:'pointer'}}>
               <span style={{fontSize:11,letterSpacing:'0.06em',color:isA?T.goldLight:T.textSub,textTransform:'uppercase',fontWeight:700,textAlign:'left',lineHeight:1.45,fontFamily:"'Georgia',serif",whiteSpace:'normal',wordBreak:'break-word'}}>{m.icon}  {m.nav||m.label}</span>
               <div style={{display:'flex',gap:4,alignItems:'center'}}>
                 {urg>0&&<span style={{background:T.red,color:T.white,fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:8}}>!</span>}
