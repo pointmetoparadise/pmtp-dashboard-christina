@@ -164,6 +164,7 @@ const MODS=[
   {id:'commissions',nav:'Commissions',label:'Commissions',icon:'💰',accent:'#c9a84c',fields:[]},
   {id:'components',nav:'Components Needed',label:'Trip Needs Components Added',short:'Components Needed',icon:'✈️',accent:T.tealLight,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'trip',l:'Trip',t:'text'},{k:'components',l:'Components Needed',t:'area',req:true},{k:'travelDate',l:'Travel Date',t:'date'},{k:'dueDate',l:'Booking Due Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
   {id:'finalPayments',nav:'Final Payments',label:'Final Payments Due',short:'Final Payments',icon:'💳',accent:T.gold,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'trip',l:'Trip / Booking #',t:'text'},{k:'supplier',l:'Supplier',t:'text'},{k:'amount',l:'Amount Due ($)',t:'text'},{k:'dueDate',l:'Payment Due Date',t:'date',req:true},{k:'notes',l:'Notes',t:'area'}]},
+  {id:'fitTracker',nav:'FIT Trip Tracker',label:'FIT Trip Tracker',icon:'📊',accent:'#27ae60',fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'destination',l:'Destination',t:'text',req:true},{k:'travelDate',l:'Departure Date',t:'date'},{k:'returnDate',l:'Return Date',t:'date'},{k:'fitSheetUrl',l:'FIT Sheet Link (client-specific)',t:'text'},{k:'notes',l:'Notes',t:'area'}]},
   {id:'hotelRequests',nav:'Hotel Requests',label:'Hotel Requests',short:'Hotel Requests',icon:'🏨',accent:'#e67e22',fields:[ {k:'client',l:'Client Name',t:'text',req:true}, {k:'hotel',l:'Hotel Name',t:'text',req:true}, {k:'destination',l:'Destination',t:'text'}, {k:'checkIn',l:'Check-In Date',t:'date'}, {k:'checkOut',l:'Check-Out Date',t:'date'}, {k:'roomType',l:'Room Type / Request',t:'text'}, {k:'guests',l:'Number of Guests',t:'text'}, {k:'status',l:'Status',t:'select',opts:['Request Sent','Request Acknowledged','Quote Received','Second Request Sent','Awaiting Approval','Request Approved','Booked','On Hold','Waitlisted','Declined','Cancelled']}, {k:'rate',l:'Rate / Total',t:'text'}, {k:'notes',l:'Special Requests / Notes',t:'area'}, ]},
   {id:'itineraries',nav:'Itineraries or Guides Needed',label:'Client Itinerary or Guides Needed',short:'Itineraries',icon:'📋',accent:T.goldLight,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'trip',l:'Trip',t:'text'},{k:'travelDate',l:'Travel Date',t:'date'},{k:'itinType',l:'Type (Custom / Supplier)',t:'text'},{k:'dueDate',l:'Itinerary Due Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
   {id:'newInquiries',nav:'New Inquiries',label:'New Inquiries',short:'New Inquiries',icon:'🆕',accent:'#7b68ee',fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'phone',l:'Phone',t:'text'},{k:'email',l:'Email',t:'text'},{k:'source',l:'Inquiry Source',t:'select',opts:['Website','Referral','Social Media','Repeat Client','Phone Call','Email','Other']},{k:'destination',l:'Destination / Interest',t:'text'},{k:'inquiryDate',l:'Date Client Reached Out',t:'date',req:true},{k:'dueDate',l:'Response Due Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
@@ -910,6 +911,79 @@ function QuickAccessBar(){
   );
 }
 
+
+/* ── FIT Trip Tracker ── */
+function FitTrackerView({session,sb,showToast,active,setModal,setForm,setFormErr,setConfirm,deleteItem}){
+  const[search,setSearch]=React.useState('');
+  const items=active('fitTracker');
+  const T2={navy:'#1b2d3a',navyMid:'#243747',teal:'#2e8b8b',tealPale:'#e8f5f5',gold:'#c9a84c',goldLight:'#e2c97e',cream:'#faf7f2',white:'#ffffff',border:'#ede8df',textSec:'#5a7a8a',textSub:'#9ab0bb'};
+  const btn2={fontFamily:"'Georgia',serif",cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em',fontWeight:700,borderRadius:6,border:'none',fontSize:11};
+  const filtered=items.filter(item=>{
+    if(!search.trim())return true;
+    const q=search.toLowerCase();
+    return[item.client,item.destination,item.notes].some(v=>v&&v.toLowerCase().includes(q));
+  });
+  function openSheet(url){
+    if(!url){showToast('No FIT sheet link added for this trip','err');return;}
+    window.open(url,'_blank');
+  }
+  return(
+    <div style={{padding:'24px 28px',overflowY:'auto',height:'100%'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
+        <div style={{display:'flex',alignItems:'center',gap:13}}>
+          <div style={{width:4,height:38,background:'linear-gradient(to bottom,#27ae60,#2e8b8b)',borderRadius:2}}/>
+          <div>
+            <div style={{fontSize:10,letterSpacing:'0.16em',color:T2.textSec,textTransform:'uppercase',marginBottom:4}}>{items.length} FIT trip{items.length!==1?'s':''} tracked</div>
+            <div style={{fontSize:19,fontWeight:700,color:T2.navy,letterSpacing:'0.04em'}}>📊 FIT Trip Tracker</div>
+          </div>
+        </div>
+        <button onClick={()=>{setModal({mid:'fitTracker',item:null});setForm({});setFormErr(false);}} style={{...btn2,padding:'9px 20px',fontSize:11,background:'linear-gradient(135deg,'+T2.navy+','+T2.navyMid+')',border:'1px solid '+T2.gold,color:T2.goldLight}}>+ Add FIT Trip</button>
+      </div>
+      <div style={{background:T2.tealPale,border:'1px solid rgba(46,139,139,0.3)',borderRadius:8,padding:'10px 14px',marginBottom:16,fontSize:12,color:T2.teal,lineHeight:1.6}}>
+        Track each client's FIT trip and link directly to their custom FIT Google Sheet. Click <strong>📋 Open Sheet</strong> to jump straight to that client's trip sheet.
+      </div>
+      <div style={{position:'relative',marginBottom:16,maxWidth:420}}>
+        <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',fontSize:13,color:T2.textSub,pointerEvents:'none'}}>🔍</span>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search client, destination..." style={{width:'100%',padding:'8px 12px 8px 34px',border:'1.5px solid '+(search?T2.teal:T2.border),borderRadius:8,fontSize:12,color:T2.navy,background:T2.white,outline:'none',fontFamily:"'Georgia',serif"}}/>
+        {search&&<button onClick={()=>setSearch('')} style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:13,color:T2.textSub}}>×</button>}
+      </div>
+      {items.length===0&&<div style={{textAlign:'center',padding:'64px 0',color:T2.textSub}}>
+        <div style={{fontSize:34,marginBottom:14}}>📊</div>
+        <div style={{fontSize:13,letterSpacing:'0.1em'}}>No FIT trips yet — add your first client trip above.</div>
+      </div>}
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {filtered.map(item=>(
+          <div key={item.id} style={{background:T2.white,border:'1px solid '+T2.border,borderRadius:12,overflow:'hidden',boxShadow:'0 2px 10px rgba(27,45,58,0.06)'}}>
+            <div style={{height:3,background:'linear-gradient(90deg,#27ae60,#2e8b8b)'}}/>
+            <div style={{padding:'14px 18px'}}>
+              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:700,fontSize:15,color:T2.navy,marginBottom:4}}>{item.client||'—'}</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:item.notes?8:0}}>
+                    {item.destination&&<span style={{fontSize:12,color:T2.textSec,background:T2.cream,padding:'2px 10px',borderRadius:4,border:'1px solid '+T2.border}}>✈️ {item.destination}</span>}
+                    {item.travelDate&&<span style={{fontSize:12,color:T2.textSec,background:T2.cream,padding:'2px 10px',borderRadius:4,border:'1px solid '+T2.border}}>🛫 {item.travelDate}</span>}
+                    {item.returnDate&&<span style={{fontSize:12,color:T2.textSec,background:T2.cream,padding:'2px 10px',borderRadius:4,border:'1px solid '+T2.border}}>🛬 {item.returnDate}</span>}
+                  </div>
+                  {item.notes&&<div style={{fontSize:12,color:T2.textSub,fontStyle:'italic',lineHeight:1.5}}>{item.notes}</div>}
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'flex-end',flexShrink:0}}>
+                  <button onClick={()=>openSheet(item.fitSheetUrl)} style={{...btn2,padding:'7px 14px',fontSize:11,background:item.fitSheetUrl?'linear-gradient(135deg,#27ae60,#2e8b8b)':'#f5f3ef',border:'1px solid '+(item.fitSheetUrl?'#27ae60':T2.border),color:item.fitSheetUrl?T2.white:T2.textSub,display:'flex',alignItems:'center',gap:5}}>
+                    📋 {item.fitSheetUrl?'Open Sheet':'No Sheet Yet'}
+                  </button>
+                  <div style={{display:'flex',gap:5}}>
+                    <button onClick={()=>{setModal({mid:'fitTracker',item});setForm({...item});setFormErr(false);}} style={{...btn2,padding:'3px 9px',fontSize:9,background:'transparent',border:'1px solid '+T2.border,color:T2.textSec}}>Edit</button>
+                    <button onClick={()=>setConfirm({msg:'Remove this FIT trip?',onConfirm:()=>deleteItem('fitTracker',item.id)})} style={{...btn2,padding:'3px 8px',fontSize:9,background:'transparent',border:'1px solid #fcc',color:'#c0392b'}}>✕</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── Commission Tracker ── */
 function CommissionView({session,sb,showToast}){
   const[tab,setTab]=React.useState('dash');
@@ -1421,7 +1495,7 @@ function App(){
           })}
         </div>
         <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}><QuickAccessBar/><div className='pmtp-content' style={{flex:1,overflowY:'auto'}}>
-          {view==='chat'?(()=>{if(chatUnreadCount>0)setChatUnreadCount(0);return<ChatView session={session} showToast={showToast}/>;})():view==='vault'?<VaultView session={session} sb={sb} showToast={showToast}/>:view==='commissions'?<CommissionView session={session} sb={sb} showToast={showToast}/>:view==='calendar'?<CalendarView active={active} MODS={MODS} highlightId={highlightId} setHighlightId={setHighlightId} isOD={isOD} isUG={isUG} daysTo={daysTo} fmtDate={fmtDate} getDK={getDK} setView={setView} T={T} btn={btn}/>:view==='checklists'?<ChecklistView session={session} showToast={showToast}/>:view==='home'?(
+          {view==='chat'?(()=>{if(chatUnreadCount>0)setChatUnreadCount(0);return<ChatView session={session} showToast={showToast}/>;})():view==='vault'?<VaultView session={session} sb={sb} showToast={showToast}/>:view==='fitTracker'?<FitTrackerView session={session} sb={sb} showToast={showToast} active={active} setModal={setModal} setForm={setForm} setFormErr={setFormErr} setConfirm={setConfirm} deleteItem={deleteItem}/>:view==='commissions'?<CommissionView session={session} sb={sb} showToast={showToast}/>:view==='calendar'?<CalendarView active={active} MODS={MODS} highlightId={highlightId} setHighlightId={setHighlightId} isOD={isOD} isUG={isUG} daysTo={daysTo} fmtDate={fmtDate} getDK={getDK} setView={setView} T={T} btn={btn}/>:view==='checklists'?<ChecklistView session={session} showToast={showToast}/>:view==='home'?(
             <div style={{padding:'26px 30px',overflowY:'auto',height:'100%'}}>
               <div style={{marginBottom:24}}>
                 <div style={{fontSize:10,letterSpacing:'0.18em',color:T.textSub,textTransform:'uppercase',marginBottom:4}}>{today}</div>
