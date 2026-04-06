@@ -206,7 +206,8 @@ const MODS=[
   {id:'admin',nav:'Admin Tasks',label:'Admin Jobs',short:'Admin Jobs',icon:'✅',accent:T.green,fields:[{k:'task',l:'Task',t:'text',req:true},{k:'priority',l:'Priority',t:'select',opts:['High','Medium','Low']},{k:'dueDate',l:'Due Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
   {id:'checklists',nav:'Booking Checklists',label:'Booking Checklists',short:'Checklists',icon:'📝',accent:'#7b68ee',fields:[]},
   {id:'calendar',nav:'Calendar / Agenda',label:'Calendar / Agenda',icon:'📅',accent:'#2e8b8b',fields:[]},
-  {id:'commissions',nav:'My Commissions',label:'My Commissions',icon:'💰',accent:'#c9a84c',fields:[]}
+  {id:'commissions',nav:'My Commissions',label:'My Commissions',icon:'💰',accent:'#c9a84c',fields:[]},
+  {id:'vault',nav:'Password Vault',label:'Password Vault',icon:'🔐',accent:'#5a4a8a',fields:[]}
 ];
 
 /* ── Helpers ── */
@@ -534,6 +535,189 @@ function ChecklistView({session,showToast}){
             </div>);
           })}
         </div>}
+      </div>}
+    </div>
+  );
+}
+
+
+/* ── Password Vault ── */
+function VaultView({session,sb,showToast}){
+  const[entries,setEntries]=React.useState([]);
+  const[loaded,setLoaded]=React.useState(false);
+  const[showAdd,setShowAdd]=React.useState(false);
+  const[editId,setEditId]=React.useState(null);
+  const[search,setSearch]=React.useState('');
+  const[filterAgency,setFilterAgency]=React.useState('');
+  const[showPw,setShowPw]=React.useState({});
+  const[form,setForm]=React.useState({vendor:'',website:'',agency:'',email:'',credentials:'',phone:'',username:'',password:'',notes:''});
+  const uid=session.user.id;
+  const AGENCIES=['PMTP','Legato','TPI'];
+  const T2={navy:'#1b2d3a',navyMid:'#243747',gold:'#c9a84c',goldLight:'#e2c97e',teal:'#2e8b8b',tealPale:'#e8f5f5',cream:'#faf7f2',white:'#ffffff',border:'#ede8df',textSec:'#5a7a8a',textSub:'#9ab0bb',green:'#5a9e82',red:'#c0392b',redPale:'#fdecea',purple:'#5a4a8a',purplePale:'#ede9f8'};
+  const btn2={fontFamily:"'Georgia',serif",cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em',fontWeight:700,borderRadius:6,border:'none',fontSize:11};
+  const inp={width:'100%',padding:'8px 11px',border:'1px solid '+T2.border,borderRadius:6,fontSize:12,color:T2.navy,background:T2.cream,outline:'none'};
+
+  React.useEffect(()=>{if(session)load();},[session]);
+
+  async function load(){
+    const{data,error}=await sb.from('password_vault').select('*').eq('user_id',uid).order('vendor',{ascending:true});
+    if(!error&&data)setEntries(data);
+    setLoaded(true);
+  }
+
+  function resetForm(){setForm({vendor:'',website:'',agency:'',email:'',credentials:'',phone:'',username:'',password:'',notes:''});setEditId(null);setShowAdd(false);}
+
+  async function save(){
+    if(!form.vendor.trim()){showToast('Vendor name is required','err');return;}
+    if(editId){
+      const{error}=await sb.from('password_vault').update({...form}).eq('id',editId).eq('user_id',uid);
+      if(error){showToast('Could not save','err');return;}
+      setEntries(p=>p.map(e=>e.id===editId?{...e,...form}:e));
+      showToast('Entry updated!');
+    } else {
+      const{data,error}=await sb.from('password_vault').insert([{...form,user_id:uid}]);
+      if(error){showToast('Could not save','err');return;}
+      load();showToast('Entry saved!');
+    }
+    resetForm();
+  }
+
+  async function del(id){
+    if(!window.confirm('Delete this vault entry? This cannot be undone.'))return;
+    await sb.from('password_vault').delete().eq('id',id).eq('user_id',uid);
+    setEntries(p=>p.filter(e=>e.id!==id));
+    showToast('Entry removed.');
+  }
+
+  function edit(e){
+    setForm({vendor:e.vendor||'',website:e.website||'',agency:e.agency||'',email:e.email||'',credentials:e.credentials||'',phone:e.phone||'',username:e.username||'',password:e.password||'',notes:e.notes||''});
+    setEditId(e.id);setShowAdd(true);
+  }
+
+  const filtered=entries.filter(e=>{
+    const q=search.toLowerCase();
+    const matchSearch=!q||[e.vendor,e.website,e.email,e.username,e.notes,e.agency].some(v=>v&&v.toLowerCase().includes(q));
+    const matchAgency=!filterAgency||e.agency===filterAgency;
+    return matchSearch&&matchAgency;
+  });
+
+  const agencyColors={'PMTP':{bg:'#e8f5f5',color:T2.teal},'Legato':{bg:'#f0ecf8',color:T2.purple},'TPI':{bg:T2.redPale,color:T2.red}};
+
+  if(!loaded)return <div style={{padding:'40px',textAlign:'center',color:T2.textSub,fontSize:13}}>Loading vault...</div>;
+
+  return(
+    <div style={{padding:'24px 28px',overflowY:'auto',height:'100%'}}>
+      {/* Header */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
+        <div style={{display:'flex',alignItems:'center',gap:13}}>
+          <div style={{width:4,height:38,background:'linear-gradient(to bottom,#5a4a8a,'+T2.teal+')',borderRadius:2}}/>
+          <div>
+            <div style={{fontSize:10,letterSpacing:'0.16em',color:T2.textSec,textTransform:'uppercase',marginBottom:4}}>{entries.length} saved credentials</div>
+            <div style={{fontSize:19,fontWeight:700,color:T2.navy,letterSpacing:'0.04em'}}>🔐 Password Vault</div>
+          </div>
+        </div>
+        <button onClick={()=>{resetForm();setShowAdd(v=>!v);}} style={{...btn2,padding:'9px 20px',fontSize:11,background:'linear-gradient(135deg,'+T2.navy+','+T2.navyMid+')',border:'1px solid '+T2.gold,color:T2.goldLight}}>{showAdd&&!editId?'Cancel':'+ Add Entry'}</button>
+      </div>
+
+      {/* Add/Edit Form */}
+      {showAdd&&<div style={{background:T2.white,border:'1px solid '+T2.gold,borderRadius:10,padding:'20px 22px',marginBottom:20,boxShadow:'0 2px 16px rgba(27,45,58,0.08)'}}>
+        <div style={{fontSize:11,letterSpacing:'0.14em',color:T2.textSec,textTransform:'uppercase',marginBottom:16,fontWeight:700}}>{editId?'Edit Entry':'New Vault Entry'}</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10,marginBottom:12}}>
+          {[
+            ['vendor','Supplier / Vendor *'],
+            ['website','Website URL'],
+            ['email','Email Used'],
+            ['credentials','Credentials / Account #'],
+            ['phone','Phone # on Account'],
+            ['username','Username'],
+          ].map(([k,l])=>(
+            <div key={k}>
+              <label style={{display:'block',fontSize:10,letterSpacing:'0.12em',color:T2.textSec,textTransform:'uppercase',marginBottom:4}}>{l}</label>
+              {k==='website'?<input value={form[k]} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} placeholder="https://..." style={inp}/>
+              :<input value={form[k]} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} style={inp}/>}
+            </div>
+          ))}
+          <div>
+            <label style={{display:'block',fontSize:10,letterSpacing:'0.12em',color:T2.textSec,textTransform:'uppercase',marginBottom:4}}>Password</label>
+            <div style={{position:'relative'}}>
+              <input type={showPw['form']?'text':'password'} value={form.password} onChange={e=>setForm(p=>({...p,password:e.target.value}))} style={{...inp,paddingRight:40}}/>
+              <button onClick={()=>setShowPw(p=>({...p,form:!p.form}))} style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:13,color:T2.textSec}}>{showPw['form']?'🙈':'👁'}</button>
+            </div>
+          </div>
+          <div>
+            <label style={{display:'block',fontSize:10,letterSpacing:'0.12em',color:T2.textSec,textTransform:'uppercase',marginBottom:4}}>Agency</label>
+            <select value={form.agency} onChange={e=>setForm(p=>({...p,agency:e.target.value}))} style={{...inp,width:'auto'}}>
+              <option value="">Select...</option>
+              {AGENCIES.map(a=><option key={a}>{a}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{display:'block',fontSize:10,letterSpacing:'0.12em',color:T2.textSec,textTransform:'uppercase',marginBottom:4}}>Notes</label>
+          <textarea value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} style={{...inp,resize:'vertical'}}/>
+        </div>
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+          <button onClick={resetForm} style={{...btn2,padding:'8px 18px',background:'transparent',border:'1px solid '+T2.border,color:T2.textSec,fontSize:11}}>Cancel</button>
+          <button onClick={save} style={{...btn2,padding:'9px 20px',background:'linear-gradient(135deg,'+T2.navy+','+T2.navyMid+')',border:'1px solid '+T2.gold,color:T2.goldLight,fontSize:11}}>{editId?'Save Changes':'Save Entry'}</button>
+        </div>
+      </div>}
+
+      {/* Search + Filter */}
+      <div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap',alignItems:'center'}}>
+        <div style={{position:'relative',flex:'1 1 200px'}}>
+          <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',fontSize:13,color:T2.textSub,pointerEvents:'none'}}>🔍</span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search vendor, email, username..." style={{...inp,paddingLeft:34}}/>
+        </div>
+        <select value={filterAgency} onChange={e=>setFilterAgency(e.target.value)} style={{...inp,width:'auto'}}>
+          <option value="">All Agencies</option>
+          {AGENCIES.map(a=><option key={a}>{a}</option>)}
+        </select>
+        {(search||filterAgency)&&<button onClick={()=>{setSearch('');setFilterAgency('');}} style={{...btn2,padding:'6px 12px',fontSize:10,background:'transparent',border:'1px solid '+T2.border,color:T2.textSec}}>Clear</button>}
+        <span style={{fontSize:11,color:T2.textSec}}>{filtered.length} of {entries.length} entries</span>
+      </div>
+
+      {/* Empty state */}
+      {entries.length===0&&!showAdd&&<div style={{textAlign:'center',padding:'64px 0',color:T2.textSub}}>
+        <div style={{fontSize:34,marginBottom:14}}>🔐</div>
+        <div style={{fontSize:13,letterSpacing:'0.1em'}}>No saved credentials — add your first supplier login above.</div>
+      </div>}
+
+      {/* Table */}
+      {filtered.length>0&&<div style={{overflowX:'auto',border:'1px solid '+T2.border,borderRadius:10}}>
+        <table style={{width:'100%',borderCollapse:'collapse',minWidth:700}}>
+          <thead><tr>{['Vendor','Agency','Website','Email','Credentials','Phone','Username','Password','Notes',''].map(h=>(
+            <th key={h} style={{background:'#f5f3ef',padding:'8px 12px',fontSize:10,color:T2.textSec,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+T2.border,textAlign:'left',whiteSpace:'nowrap'}}>{h}</th>
+          ))}</tr></thead>
+          <tbody>{filtered.map((e,i)=>(
+            <tr key={e.id||i} style={{borderBottom:'1px solid #f5f3ef'}}>
+              <td style={{padding:'9px 12px',fontWeight:700,fontSize:13,color:T2.navy,whiteSpace:'nowrap'}}>{e.vendor||'—'}</td>
+              <td style={{padding:'9px 12px'}}>
+                {e.agency?<span style={{display:'inline-block',padding:'2px 8px',borderRadius:4,fontSize:10,fontWeight:700,...(agencyColors[e.agency]||{bg:'#f5f3ef',color:T2.textSec}),border:'1px solid rgba(0,0,0,0.1)'}}>{e.agency}</span>:'—'}
+              </td>
+              <td style={{padding:'9px 12px',fontSize:12,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                {e.website?<a href={e.website} target="_blank" style={{color:T2.teal,textDecoration:'none'}}>{e.website.replace(/^https?:\/\//,'')}</a>:'—'}
+              </td>
+              <td style={{padding:'9px 12px',fontSize:12,color:T2.textSec,whiteSpace:'nowrap'}}>{e.email||'—'}</td>
+              <td style={{padding:'9px 12px',fontSize:11,color:T2.textSec,fontFamily:'Courier New,monospace'}}>{e.credentials||'—'}</td>
+              <td style={{padding:'9px 12px',fontSize:12,color:T2.textSec,whiteSpace:'nowrap'}}>{e.phone||'—'}</td>
+              <td style={{padding:'9px 12px',fontSize:12,color:T2.textSec}}>{e.username||'—'}</td>
+              <td style={{padding:'9px 12px'}}>
+                {e.password?<div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <span style={{fontSize:12,fontFamily:'Courier New,monospace',color:T2.navy}}>{showPw[e.id]?e.password:'••••••••'}</span>
+                  <button onClick={()=>setShowPw(p=>({...p,[e.id]:!p[e.id]}))} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:T2.textSub,padding:0}}>{showPw[e.id]?'🙈':'👁'}</button>
+                  <button onClick={()=>{navigator.clipboard.writeText(e.password);showToast('Password copied!');}} style={{background:'none',border:'none',cursor:'pointer',fontSize:11,color:T2.textSec,padding:0}}>📋</button>
+                </div>:'—'}
+              </td>
+              <td style={{padding:'9px 12px',fontSize:11,color:T2.textSec,maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{e.notes||'—'}</td>
+              <td style={{padding:'9px 12px',whiteSpace:'nowrap'}}>
+                <div style={{display:'flex',gap:5}}>
+                  <button onClick={()=>edit(e)} style={{...btn2,padding:'3px 9px',fontSize:9,background:'transparent',border:'1px solid '+T2.border,color:T2.textSec}}>Edit</button>
+                  <button onClick={()=>del(e.id)} style={{...btn2,padding:'3px 8px',fontSize:9,background:'transparent',border:'1px solid #fcc',color:T2.red}}>✕</button>
+                </div>
+              </td>
+            </tr>
+          ))}</tbody>
+        </table>
       </div>}
     </div>
   );
@@ -1016,7 +1200,7 @@ function App(){
           })}
         </div>
         <div className='pmtp-content' style={{flex:1,overflowY:'auto'}}>
-          {view==='commissions'?<CommissionView session={session} sb={sb} showToast={showToast}/>:view==='calendar'?<CalendarView active={active} MODS={MODS} highlightId={highlightId} setHighlightId={setHighlightId} isOD={isOD} isUG={isUG} daysTo={daysTo} fmtDate={fmtDate} getDK={getDK} setView={setView} T={T} btn={btn}/>:view==='checklists'?<ChecklistView session={session} showToast={showToast}/>:view==='home'?(
+          {view==='vault'?<VaultView session={session} sb={sb} showToast={showToast}/>:view==='commissions'?<CommissionView session={session} sb={sb} showToast={showToast}/>:view==='calendar'?<CalendarView active={active} MODS={MODS} highlightId={highlightId} setHighlightId={setHighlightId} isOD={isOD} isUG={isUG} daysTo={daysTo} fmtDate={fmtDate} getDK={getDK} setView={setView} T={T} btn={btn}/>:view==='checklists'?<ChecklistView session={session} showToast={showToast}/>:view==='home'?(
             <div style={{padding:'26px 30px',overflowY:'auto',height:'100%'}}>
               <div style={{marginBottom:24}}>
                 <div style={{fontSize:10,letterSpacing:'0.18em',color:T.textSub,textTransform:'uppercase',marginBottom:4}}>{today}</div>
