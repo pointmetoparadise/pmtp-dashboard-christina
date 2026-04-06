@@ -207,7 +207,8 @@ const MODS=[
   {id:'checklists',nav:'Booking Checklists',label:'Booking Checklists',short:'Checklists',icon:'📝',accent:'#7b68ee',fields:[]},
   {id:'calendar',nav:'Calendar / Agenda',label:'Calendar / Agenda',icon:'📅',accent:'#2e8b8b',fields:[]},
   {id:'commissions',nav:'My Commissions',label:'My Commissions',icon:'💰',accent:'#c9a84c',fields:[]},
-  {id:'vault',nav:'Password Vault',label:'Password Vault',icon:'🔐',accent:'#5a4a8a',fields:[]}
+  {id:'vault',nav:'Password Vault',label:'Password Vault',icon:'🔐',accent:'#5a4a8a',fields:[]},
+  {id:'chat',nav:'Team Chat',label:'Team Chat',icon:'💬',accent:'#2e8b8b',fields:[]}
 ];
 
 /* ── Helpers ── */
@@ -542,6 +543,189 @@ function ChecklistView({session,showToast}){
 
 
 /* ── Password Vault ── */
+
+/* ── Team Chat ── */
+const CHAT_SB_URL='https://voowpwzpilymtaeskmom.supabase.co';
+const CHAT_SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvb3dwd3pwaWx5bXRhZXNrbW9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzOTU3NjgsImV4cCI6MjA5MDk3MTc2OH0.6q67zuDJAWpaRHlFWbLFYFRCK_LcNrU6_2bWYetE76Y';
+
+async function chatReq(method,table,filters,body){
+  const q=filters&&filters.length?'?'+filters.join('&'):'';
+  const r=await fetch(CHAT_SB_URL+'/rest/v1/'+table+q,{method,headers:{'Content-Type':'application/json','apikey':CHAT_SB_KEY,'Authorization':'Bearer '+CHAT_SB_KEY,'Prefer':'return=representation'},body:body?JSON.stringify(body):undefined});
+  const t=await r.text();return t?JSON.parse(t):null;
+}
+
+function ChatView({session,showToast}){
+  const agentName=session?.user?.user_metadata?.full_name||session?.user?.email||'Agent';
+  const[tab,setTab]=React.useState('general');
+  const[dmAgent,setDmAgent]=React.useState(null);
+  const[generalMsgs,setGeneralMsgs]=React.useState([]);
+  const[dmMsgs,setDmMsgs]=React.useState([]);
+  const[agents,setAgents]=React.useState([]);
+  const[msg,setMsg]=React.useState('');
+  const[unread,setUnread]=React.useState({});
+  const[loaded,setLoaded]=React.useState(false);
+  const bottomRef=React.useRef(null);
+  const pollRef=React.useRef(null);
+  const T2={navy:'#1b2d3a',teal:'#2e8b8b',tealPale:'#e8f5f5',border:'#ede8df',textSec:'#5a7a8a',textSub:'#9ab0bb',white:'#ffffff',cream:'#faf7f2'};
+
+  React.useEffect(()=>{
+    updatePresence();
+    loadAll();
+    pollRef.current=setInterval(()=>{updatePresence();loadAll();},8000);
+    return()=>clearInterval(pollRef.current);
+  },[]);
+
+  React.useEffect(()=>{
+    if(bottomRef.current)bottomRef.current.scrollIntoView({behavior:'smooth'});
+  },[generalMsgs,dmMsgs]);
+
+  async function updatePresence(){
+    try{await fetch(CHAT_SB_URL+'/rest/v1/agent_presence',{method:'POST',headers:{'Content-Type':'application/json','apikey':CHAT_SB_KEY,'Authorization':'Bearer '+CHAT_SB_KEY,'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({agent_name:agentName,last_seen:new Date().toISOString()})});}catch(e){}
+  }
+
+  async function loadAll(){
+    try{
+      // Load presence
+      const pres=await chatReq('GET','agent_presence',['select=agent_name,last_seen','order=agent_name.asc']);
+      if(pres)setAgents(pres.filter(a=>a.agent_name!==agentName));
+      // Load general (last 100)
+      const gen=await chatReq('GET','team_chat',['select=*','channel=eq.general','order=created_at.asc','limit=100']);
+      if(gen){
+        setGeneralMsgs(gen);
+        // Mark as read
+        const unreadGen=gen.filter(m=>!m.read_by?.includes(agentName));
+        if(unreadGen.length>0){
+          await Promise.all(unreadGen.map(m=>fetch(CHAT_SB_URL+'/rest/v1/team_chat?id=eq.'+m.id,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':CHAT_SB_KEY,'Authorization':'Bearer '+CHAT_SB_KEY,'Prefer':'return=minimal'},body:JSON.stringify({read_by:[...(m.read_by||[]),agentName]})})));
+        }
+      }
+      // Load DMs for all agents to compute unread
+      const dms=await chatReq('GET','team_chat',['select=*','channel=eq.dm','order=created_at.asc']);
+      if(dms){
+        const myDms=dms.filter(m=>m.sender_name===agentName||m.recipient_name===agentName);
+        // Compute unread per agent
+        const unreadMap={};
+        myDms.filter(m=>m.recipient_name===agentName&&!m.read_by?.includes(agentName)).forEach(m=>{
+          unreadMap[m.sender_name]=(unreadMap[m.sender_name]||0)+1;
+        });
+        setUnread(unreadMap);
+        if(dmAgent){
+          const conv=myDms.filter(m=>(m.sender_name===agentName&&m.recipient_name===dmAgent)||(m.sender_name===dmAgent&&m.recipient_name===agentName)).slice(-100);
+          setDmMsgs(conv);
+          // Mark DMs as read
+          const unreadDm=conv.filter(m=>m.recipient_name===agentName&&!m.read_by?.includes(agentName));
+          if(unreadDm.length>0){
+            await Promise.all(unreadDm.map(m=>fetch(CHAT_SB_URL+'/rest/v1/team_chat?id=eq.'+m.id,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':CHAT_SB_KEY,'Authorization':'Bearer '+CHAT_SB_KEY,'Prefer':'return=minimal'},body:JSON.stringify({read_by:[...(m.read_by||[]),agentName]})})));
+          }
+        }
+      }
+      setLoaded(true);
+    }catch(e){setLoaded(true);}
+  }
+
+  async function send(){
+    if(!msg.trim())return;
+    const payload={sender_name:agentName,message:msg.trim(),read_by:[agentName]};
+    if(tab==='general'){payload.channel='general';payload.recipient_name=null;}
+    else{payload.channel='dm';payload.recipient_name=dmAgent;}
+    try{await chatReq('POST','team_chat',[],[payload]);setMsg('');loadAll();}
+    catch(e){showToast('Could not send message','err');}
+  }
+
+  async function delMsg(id){
+    if(!window.confirm('Delete this message?'))return;
+    await fetch(CHAT_SB_URL+'/rest/v1/team_chat?id=eq.'+id,{method:'DELETE',headers:{'apikey':CHAT_SB_KEY,'Authorization':'Bearer '+CHAT_SB_KEY}});
+    loadAll();
+  }
+
+  function isOnline(lastSeen){
+    return lastSeen&&(Date.now()-new Date(lastSeen).getTime())<30000;
+  }
+
+  function fmtTime(ts){
+    const d=new Date(ts);
+    const now=new Date();
+    const isToday=d.toDateString()===now.toDateString();
+    return isToday?d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString([],{month:'short',day:'numeric'})+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  }
+
+  const messages=tab==='general'?generalMsgs:dmMsgs;
+  const totalUnread=Object.values(unread).reduce((s,v)=>s+v,0);
+
+  if(!loaded)return<div style={{padding:'40px',textAlign:'center',color:T2.textSub,fontSize:13}}>Loading chat...</div>;
+
+  return(
+    <div style={{display:'flex',height:'100%',overflow:'hidden'}}>
+      {/* Sidebar */}
+      <div style={{width:180,borderRight:'1px solid '+T2.border,display:'flex',flexDirection:'column',flexShrink:0,background:T2.cream}}>
+        {/* General */}
+        <div onClick={()=>{setTab('general');setDmAgent(null);}} style={{padding:'12px 14px',cursor:'pointer',borderBottom:'1px solid '+T2.border,background:tab==='general'?T2.tealPale:'transparent',borderLeft:tab==='general'?'3px solid '+T2.teal:'3px solid transparent'}}>
+          <div style={{fontSize:11,fontWeight:700,color:tab==='general'?T2.teal:T2.navy,letterSpacing:'0.08em',textTransform:'uppercase'}}># general</div>
+          <div style={{fontSize:10,color:T2.textSub,marginTop:2}}>Agency-wide</div>
+        </div>
+        {/* DMs */}
+        <div style={{padding:'8px 14px 4px',fontSize:9,fontWeight:700,letterSpacing:'0.14em',color:T2.textSub,textTransform:'uppercase'}}>
+          Direct Messages {totalUnread>0&&<span style={{background:T2.teal,color:'#fff',borderRadius:20,padding:'1px 6px',fontSize:9,marginLeft:4}}>{totalUnread}</span>}
+        </div>
+        {agents.length===0&&<div style={{padding:'8px 14px',fontSize:11,color:T2.textSub}}>No other agents yet</div>}
+        {agents.map((a,i)=>{
+          const online=isOnline(a.last_seen);
+          const uCount=unread[a.agent_name]||0;
+          const active=tab==='dm'&&dmAgent===a.agent_name;
+          return(
+            <div key={i} onClick={()=>{setTab('dm');setDmAgent(a.agent_name);setTimeout(loadAll,100);}} style={{padding:'8px 14px',cursor:'pointer',background:active?T2.tealPale:'transparent',borderLeft:active?'3px solid '+T2.teal:'3px solid transparent',display:'flex',alignItems:'center',gap:7}}>
+              <div style={{width:7,height:7,borderRadius:'50%',background:online?'#2a7a50':'#ccc',flexShrink:0}}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:11,fontWeight:700,color:active?T2.teal:T2.navy,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{a.agent_name.split(' ')[0]}</div>
+                <div style={{fontSize:9,color:online?'#2a7a50':T2.textSub}}>{online?'Online':'Away'}</div>
+              </div>
+              {uCount>0&&<span style={{background:T2.teal,color:'#fff',borderRadius:20,padding:'1px 5px',fontSize:9,fontWeight:700}}>{uCount}</span>}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Chat area */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        {/* Header */}
+        <div style={{padding:'10px 16px',borderBottom:'1px solid '+T2.border,background:T2.white,flexShrink:0}}>
+          <div style={{fontSize:12,fontWeight:700,color:T2.navy,letterSpacing:'0.08em',textTransform:'uppercase'}}>{tab==='general'?'# general':'💬 '+dmAgent}</div>
+          <div style={{fontSize:10,color:T2.textSub}}>{tab==='general'?'All agents · last 100 messages':''}</div>
+        </div>
+
+        {/* Messages */}
+        <div style={{flex:1,overflowY:'auto',padding:'12px 16px',display:'flex',flexDirection:'column',gap:8}}>
+          {messages.length===0&&<div style={{textAlign:'center',padding:'40px 0',color:T2.textSub,fontSize:13}}>No messages yet. Say hello! 👋</div>}
+          {messages.map((m,i)=>{
+            const mine=m.sender_name===agentName;
+            return(
+              <div key={i} style={{display:'flex',flexDirection:mine?'row-reverse':'row',gap:8,alignItems:'flex-end'}}>
+                {!mine&&<div style={{width:28,height:28,borderRadius:'50%',background:T2.tealPale,border:'1px solid '+T2.teal,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:T2.teal,flexShrink:0}}>{(m.sender_name||'?')[0]}</div>}
+                <div style={{maxWidth:'70%'}}>
+                  {!mine&&<div style={{fontSize:9,color:T2.textSub,marginBottom:2,letterSpacing:'0.06em',textTransform:'uppercase'}}>{m.sender_name}</div>}
+                  <div style={{background:mine?T2.teal:'#fff',color:mine?'#fff':T2.navy,padding:'8px 12px',borderRadius:mine?'12px 12px 2px 12px':'12px 12px 12px 2px',fontSize:13,lineHeight:1.5,border:mine?'none':'1px solid '+T2.border,wordBreak:'break-word'}}>
+                    {m.message}
+                  </div>
+                  <div style={{fontSize:9,color:T2.textSub,marginTop:2,textAlign:mine?'right':'left',display:'flex',gap:6,justifyContent:mine?'flex-end':'flex-start',alignItems:'center'}}>
+                    {fmtTime(m.created_at)}
+                    {mine&&tab==='dm'&&<button onClick={()=>delMsg(m.id)} style={{background:'none',border:'none',cursor:'pointer',fontSize:9,color:'#ccc',padding:0}}>✕</button>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={bottomRef}/>
+        </div>
+
+        {/* Input */}
+        <div style={{padding:'10px 14px',borderTop:'1px solid '+T2.border,background:T2.white,flexShrink:0,display:'flex',gap:8,alignItems:'center'}}>
+          <input value={msg} onChange={e=>setMsg(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&send()} placeholder={tab==='general'?'Message #general...':'Message '+dmAgent+'...'} style={{flex:1,padding:'9px 13px',border:'1px solid '+T2.border,borderRadius:22,fontSize:13,outline:'none',fontFamily:'Georgia,serif',background:T2.cream}}/>
+          <button onClick={send} disabled={!msg.trim()} style={{background:T2.teal,border:'none',borderRadius:'50%',width:36,height:36,cursor:'pointer',fontSize:16,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',opacity:msg.trim()?1:0.4}}>↑</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function VaultView({session,sb,showToast}){
   const[entries,setEntries]=React.useState([]);
   const[loaded,setLoaded]=React.useState(false);
@@ -1108,6 +1292,28 @@ function App(){
   const[googleTok,setGoogleTok]=useState(()=>{const tok=localStorage.getItem('pmtp_gtok');const exp=parseInt(localStorage.getItem('pmtp_gexp')||'0');return tok&&Date.now()<exp?tok:null;});
   const[calLoad,setCalLoad]=useState(null);
   const showToast=useCallback((msg,type='ok')=>setToast({msg,type}),[]);
+  const[chatNotif,setChatNotif]=React.useState(null);
+  const lastChatCheck=React.useRef(new Date().toISOString());
+  const agentNameForChat=(session?.user?.user_metadata?.full_name||session?.user?.email||'');
+  React.useEffect(()=>{
+    if(!session)return;
+    const poll=setInterval(async()=>{
+      try{
+        const since=lastChatCheck.current;lastChatCheck.current=new Date().toISOString();
+        const r=await fetch(CHAT_SB_URL+'/rest/v1/team_chat?created_at=gt.'+encodeURIComponent(since)+'&sender_name=neq.'+encodeURIComponent(agentNameForChat)+'&select=sender_name,message,channel,recipient_name',{headers:{'apikey':CHAT_SB_KEY,'Authorization':'Bearer '+CHAT_SB_KEY}});
+        const msgs=await r.json();
+        if(msgs&&msgs.length>0){
+          const relevant=msgs.filter(m=>m.channel==='general'||(m.channel==='dm'&&m.recipient_name===agentNameForChat));
+          if(relevant.length>0){
+            const m=relevant[relevant.length-1];
+            setChatNotif({sender:m.sender_name,text:m.message.slice(0,60)+(m.message.length>60?'...':''),isDm:m.channel==='dm'});
+            setTimeout(()=>setChatNotif(null),5000);
+          }
+        }
+      }catch(e){}
+    },8000);
+    return()=>clearInterval(poll);
+  },[session]);
   useEffect(()=>{
     sb.auth.getSession().then(({data:{session}})=>{setSession(session);setLoaded(true);});
     const{data:{subscription}}=sb.auth.onAuthStateChange((_,s)=>setSession(s));
@@ -1239,7 +1445,7 @@ function App(){
           })}
         </div>
         <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}><QuickAccessBar/><div className='pmtp-content' style={{flex:1,overflowY:'auto'}}>
-          {view==='vault'?<VaultView session={session} sb={sb} showToast={showToast}/>:view==='commissions'?<CommissionView session={session} sb={sb} showToast={showToast}/>:view==='calendar'?<CalendarView active={active} MODS={MODS} highlightId={highlightId} setHighlightId={setHighlightId} isOD={isOD} isUG={isUG} daysTo={daysTo} fmtDate={fmtDate} getDK={getDK} setView={setView} T={T} btn={btn}/>:view==='checklists'?<ChecklistView session={session} showToast={showToast}/>:view==='home'?(
+          {view==='chat'?<ChatView session={session} showToast={showToast}/>:view==='vault'?<VaultView session={session} sb={sb} showToast={showToast}/>:view==='commissions'?<CommissionView session={session} sb={sb} showToast={showToast}/>:view==='calendar'?<CalendarView active={active} MODS={MODS} highlightId={highlightId} setHighlightId={setHighlightId} isOD={isOD} isUG={isUG} daysTo={daysTo} fmtDate={fmtDate} getDK={getDK} setView={setView} T={T} btn={btn}/>:view==='checklists'?<ChecklistView session={session} showToast={showToast}/>:view==='home'?(
             <div style={{padding:'26px 30px',overflowY:'auto',height:'100%'}}>
               <div style={{marginBottom:24}}>
                 <div style={{fontSize:10,letterSpacing:'0.18em',color:T.textSub,textTransform:'uppercase',marginBottom:4}}>{today}</div>
@@ -1363,6 +1569,14 @@ function App(){
         </div>
       </div>}
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
+      {chatNotif&&<div onClick={()=>{setView('chat');setChatNotif(null);}} style={{position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',zIndex:9999,background:'#1b2d3a',border:'1px solid #2e8b8b',borderRadius:12,padding:'12px 20px',boxShadow:'0 8px 32px rgba(0,0,0,0.25)',cursor:'pointer',display:'flex',gap:10,alignItems:'center',minWidth:260,maxWidth:360}}>
+        <div style={{width:36,height:36,borderRadius:'50%',background:'#e8f5f5',border:'1px solid #2e8b8b',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>💬</div>
+        <div>
+          <div style={{fontSize:11,fontWeight:700,color:'#e2c97e',letterSpacing:'0.06em',textTransform:'uppercase'}}>{chatNotif.isDm?'Direct Message':'#general'} · {chatNotif.sender}</div>
+          <div style={{fontSize:12,color:'#fff',marginTop:2,lineHeight:1.4}}>{chatNotif.text}</div>
+        </div>
+        <button onClick={e=>{e.stopPropagation();setChatNotif(null);}} style={{background:'none',border:'none',color:'#9ab0bb',cursor:'pointer',fontSize:16,marginLeft:'auto',padding:0}}>×</button>
+      </div>}
     </div></div>
   );
 }
