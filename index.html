@@ -1297,6 +1297,20 @@ function App(){
   const lastChatCheck=React.useRef(new Date().toISOString());
   const agentNameForChat=(session?.user?.user_metadata?.full_name||session?.user?.email||'');
   React.useEffect(()=>{
+    if(!session||!agentNameForChat)return;
+    // On load: count existing unread messages
+    (async()=>{
+      try{
+        const r=await fetch(CHAT_SB_URL+'/rest/v1/team_chat?select=id,channel,recipient_name,read_by,sender_name&or=(channel.eq.general,and(channel.eq.dm,recipient_name.eq.'+encodeURIComponent(agentNameForChat)+'))&sender_name=neq.'+encodeURIComponent(agentNameForChat),{headers:{'apikey':CHAT_SB_KEY,'Authorization':'Bearer '+CHAT_SB_KEY}});
+        const msgs=await r.json();
+        if(msgs&&msgs.length){
+          const unread=msgs.filter(m=>!m.read_by||!m.read_by.includes(agentNameForChat));
+          if(unread.length>0)setChatUnreadCount(unread.length);
+        }
+      }catch(e){}
+    })();
+  },[session,agentNameForChat]);
+  React.useEffect(()=>{
     if(!session)return;
     const poll=setInterval(async()=>{
       try{
@@ -1402,7 +1416,7 @@ function App(){
   if(!loaded)return<div style={{height:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:T.cream}}><div style={{textAlign:'center',color:T.textSec,fontSize:13,letterSpacing:'0.1em'}}>Loading…</div></div>;
   if(!session)return<AuthScreen onAuth={s=>setSession(s)}/>;
   return(
-    <div style={{height:'100vh',background:T.cream,display:'flex',flexDirection:'column',overflow:'hidden',fontSize:(zoom*100)+'%'}}>
+    <div style={{height:'100vh',background:T.cream,display:'flex',flexDirection:'column',overflow:'hidden',zoom:zoom}}>
       <div style={{height:72,flexShrink:0,background:'linear-gradient(135deg,'+T.navy+' 0%,'+T.navyMid+' 60%,'+T.navyLight+' 100%)',borderBottom:'2px solid '+T.tealDeep,boxShadow:'0 4px 24px rgba(27,45,58,0.35)',display:'flex',alignItems:'center',padding:'0 24px',position:'relative',zIndex:20}}>
         <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:'linear-gradient(90deg,transparent,'+T.tealDeep+','+T.teal+','+T.tealDeep+',transparent)'}}/>
         <button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',padding:'8px',marginRight:8,display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
