@@ -1410,6 +1410,7 @@ function App(){
           {MODS.filter(m=>!m.external).map(m=>{
             const cnt=active(m.id).length,urg=active(m.id).filter(i=>isUG(i,m)||isOD(i,m)).length,isA=view===m.id;
             const divBefore=(m.id==='admin'||m.id==='hpFollowups');
+            const divBefore=(m.id==='admin'||m.id==='hpFollowups');
             return<React.Fragment key={m.id}>{divBefore&&<div style={{height:'1px',background:'rgba(255,255,255,0.12)',margin:'5px 12px'}}/>}<button onClick={()=>{if(m.external){window.open(m.external,'_blank');}else{setView(m.id);setShowDone(false);setModSearch('');}setSidebarOpen(false);}} style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%',padding:'10px 14px 10px 12px',background:isA?'rgba(201,168,76,0.14)':'transparent',border:'none',borderLeft:isA?'3px solid '+T.gold:'3px solid transparent',cursor:'pointer'}}>
               <span style={{fontSize:11,letterSpacing:'0.06em',color:isA?T.goldLight:T.textSub,textTransform:'uppercase',fontWeight:700,textAlign:'left',lineHeight:1.45,fontFamily:"'Georgia',serif",whiteSpace:'normal',wordBreak:'break-word'}}>{m.icon}  {m.nav||m.label}</span>
               <div style={{display:'flex',gap:4,alignItems:'center'}}>
