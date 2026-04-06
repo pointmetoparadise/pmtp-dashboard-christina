@@ -723,6 +723,45 @@ function VaultView({session,sb,showToast}){
   );
 }
 
+
+/* ── Quick Access Bar ── */
+function QuickAccessBar(){
+  const[open,setOpen]=React.useState(true);
+  const LINKS=[
+    {icon:'🚀',label:'Launchboard',url:'https://pmtp-launchboard.vercel.app/'},
+    {icon:'📋',label:'FIT Trip',url:'https://docs.google.com/spreadsheets/d/11iTKoAtr6EEo9yqMYUSeTNFCEKkRsTfb/copy'},
+    {icon:'⚡',label:'Gamma',url:'https://gamma.app/'},
+    {icon:'📂',label:'Google Drive',url:'https://workspace.google.com/products/drive/'},
+    {icon:'📝',label:'IC Admin',url:'https://docs.google.com/forms/d/e/1FAIpQLSc14nd0bmfrpN3G-I0VI92vH2do4ZQ65Z50T0Cln4HnUsiPJA/viewform?usp=header'},
+    {icon:'📊',label:'Montis Pro',url:'https://montis.pro/stream/'},
+    {icon:'➕',label:'New Supplier',url:'https://docs.google.com/forms/d/e/1FAIpQLSewvOqT94wfQ7s-nVIdKT5TWRFRlcKSYs_78-IdidjxGto5NQ/viewform?usp=header'},
+    {icon:'📖',label:'NotebookLM',url:'https://notebooklm.google.com/?pli=1'},
+    {icon:'🏠',label:'PMTP Portal',url:'https://eliteparadiseplanners.com/communities/groups/pmtp-paradise-planners/private-group'},
+    {icon:'🗂️',label:'Supplier Dir',url:'https://pmtp-supplier-directory.vercel.app/'},
+    {icon:'🖊',label:'Supplier Reg',url:'https://docs.google.com/forms/d/e/1FAIpQLSdxTMUIRuOhTa0TeXp1CMvyZR3TMdT8BtXh9UJjHNkokMI0og/viewform?usp=header'},
+    {icon:'✈️',label:'Travel Joy',url:'https://traveljoy.com/users/sign_in'},
+    {icon:'🌐',label:'Travel Leaders',url:'https://agentprofiler.travelleaders.com/login.aspx?program=AU&redirectURL=%2fleaders-alliances%2fhmdwla'},
+  ];
+  return(
+    <div style={{borderBottom:'1px solid #ede8df',background:'#faf7f2',flexShrink:0}}>
+      <div onClick={()=>setOpen(v=>!v)} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 20px',cursor:'pointer',background:open?'#1b2d3a':'#faf7f2',transition:'background 0.2s'}}>
+        <span style={{fontSize:12}}>⚡</span>
+        <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.18em',textTransform:'uppercase',color:open?'#e2c97e':'#5a7a8a'}}>Quick Access</span>
+        <span style={{marginLeft:'auto',fontSize:10,color:open?'#e2c97e':'#9ab0bb'}}>{open?'▲':'▼'}</span>
+      </div>
+      {open&&<div style={{padding:'8px 14px 10px',display:'flex',flexWrap:'wrap',gap:6}}>
+        {LINKS.map((l,i)=>(
+          <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',gap:5,padding:'4px 10px',background:'#fff',border:'1px solid #ede8df',borderRadius:20,fontSize:10,color:'#1b2d3a',fontFamily:"Georgia,serif",fontWeight:700,letterSpacing:'0.07em',textTransform:'uppercase',textDecoration:'none',whiteSpace:'nowrap',transition:'0.15s'}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor='#2e8b8b';e.currentTarget.style.color='#2e8b8b';}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor='#ede8df';e.currentTarget.style.color='#1b2d3a';}}>
+            <span style={{fontSize:12}}>{l.icon}</span>{l.label}
+          </a>
+        ))}
+      </div>}
+    </div>
+  );
+}
+
 /* ── Commission Tracker ── */
 function CommissionView({session,sb,showToast}){
   const[tab,setTab]=React.useState('dash');
@@ -1199,7 +1238,7 @@ function App(){
             </button>;
           })}
         </div>
-        <div className='pmtp-content' style={{flex:1,overflowY:'auto'}}>
+        <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}><QuickAccessBar/><div className='pmtp-content' style={{flex:1,overflowY:'auto'}}>
           {view==='vault'?<VaultView session={session} sb={sb} showToast={showToast}/>:view==='commissions'?<CommissionView session={session} sb={sb} showToast={showToast}/>:view==='calendar'?<CalendarView active={active} MODS={MODS} highlightId={highlightId} setHighlightId={setHighlightId} isOD={isOD} isUG={isUG} daysTo={daysTo} fmtDate={fmtDate} getDK={getDK} setView={setView} T={T} btn={btn}/>:view==='checklists'?<ChecklistView session={session} showToast={showToast}/>:view==='home'?(
             <div style={{padding:'26px 30px',overflowY:'auto',height:'100%'}}>
               <div style={{marginBottom:24}}>
@@ -1324,7 +1363,7 @@ function App(){
         </div>
       </div>}
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
-    </div>
+    </div></div>
   );
 }
 
