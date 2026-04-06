@@ -1312,6 +1312,58 @@ function CalendarView({active,MODS,highlightId,setHighlightId,isOD,isUG,daysTo,f
   );
 }
 
+
+/* ── Agency Credentials ── */
+function AgencyCredentials({T}){
+  const[open,setOpen]=React.useState(false);
+  const agencies=[
+    {name:'PMTP',color:'#2e8b8b',items:[
+      {l:'ARC',v:'45620153'},{l:'CLIA',v:'00046304'},
+      {l:'Phone',v:'281-229-0862 · 281-229-0863 · 281-694-5514'},
+      {l:'Address',v:'6 Barometer Close, Galveston, TX 77554'},
+    ]},
+    {name:'Legato',color:'#9b59b6',items:[
+      {l:'ARC/IATA/CLIA',v:'06602105'},{l:'Phone',v:'719-413-4070'},
+      {l:'Address',v:'1155 Kelly Johnson Blvd Suite 111, Unit 153, Colorado Springs, CO 80920'},
+    ]},
+    {name:'TPI',color:'#c0392b',items:[
+      {l:'IATA',v:'10504292'},{l:'Phone',v:'407-331-2888'},
+      {l:'Address',v:'1740 Fennell Street, Maitland, FL 32751'},
+    ]},
+    {name:'TLN / emPower Cruises',color:'#d4843e',items:[
+      {l:'CLIA',v:'24632145'},{l:'Agency Phone',v:'314-523-5263'},
+      {l:'Support Desk',v:'1-888-227-1122 (Mon–Fri 10am–7pm ET)'},
+      {l:'Vendor Email',v:'vendor@empowertravel.net'},
+      {l:'Support Email',v:'support@empowertravel.net'},
+      {l:'Address',v:'PO Box 47248, Plymouth, MN 55447'},
+    ]},
+  ];
+  return(
+    <div style={{marginBottom:16}}>
+      <button onClick={()=>setOpen(v=>!v)} style={{display:'flex',alignItems:'center',gap:8,background:'transparent',border:'none',cursor:'pointer',padding:'6px 0',marginBottom:open?10:0}}>
+        <span style={{fontSize:10,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',color:T.textSec}}>🔑 Agency Credentials</span>
+        <span style={{fontSize:10,color:T.textSub}}>{open?'▲':'▼'}</span>
+      </button>
+      {open&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:8}}>
+        {agencies.map((ag,i)=>(
+          <div key={i} style={{background:T.white,border:'1px solid '+T.border,borderRadius:10,overflow:'hidden',boxShadow:'0 2px 8px rgba(27,45,58,0.05)'}}>
+            <div style={{height:3,background:ag.color}}/>
+            <div style={{padding:'10px 14px'}}>
+              <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:ag.color,marginBottom:8}}>{ag.name}</div>
+              {ag.items.map((item,j)=>(
+                <div key={j} style={{display:'flex',gap:6,marginBottom:4,alignItems:'flex-start'}}>
+                  <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:T.textSub,flexShrink:0,marginTop:1,minWidth:60}}>{item.l}</span>
+                  <span style={{fontSize:11,color:T.text,lineHeight:1.4,fontFamily:'Courier New,monospace',wordBreak:'break-word'}}>{item.v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>}
+    </div>
+  );
+}
+
 /* ── Main App ── */
 function App(){
   const[session,setSession]=useState(null);
@@ -1545,56 +1597,7 @@ function App(){
                   {!searchQ&&urgOpen>0&&<button onClick={()=>setCriticalOnly(v=>!v)} style={{fontFamily:"'Georgia',serif",cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em',fontWeight:700,borderRadius:6,fontSize:11,padding:'10px 18px',background:criticalOnly?T.red:'transparent',border:'1px solid '+(criticalOnly?T.red:T.border),color:criticalOnly?T.white:T.textSec}}>{criticalOnly?'Showing Critical Only  x':'Show Critical Only'}</button>}
                 </div>
               </div>
-              {/* ── Agency Credentials ── */}
-              {!searchQ.trim()&&(()=>{
-                const[credsOpen,setCredsOpen]=React.useState(false);
-                const agencies=[
-                  {name:'PMTP',color:'#2e8b8b',items:[
-                    {l:'ARC',v:'45620153'},{l:'CLIA',v:'00046304'},
-                    {l:'Phone',v:'281-229-0862 · 281-229-0863 · 281-694-5514'},
-                    {l:'Address',v:'6 Barometer Close, Galveston, TX 77554'},
-                  ]},
-                  {name:'Legato',color:'#9b59b6',items:[
-                    {l:'ARC/IATA/CLIA',v:'06602105'},{l:'Phone',v:'719-413-4070'},
-                    {l:'Address',v:'1155 Kelly Johnson Blvd Suite 111, Unit 153, Colorado Springs, CO 80920'},
-                  ]},
-                  {name:'TPI',color:'#c0392b',items:[
-                    {l:'IATA',v:'10504292'},{l:'Phone',v:'407-331-2888'},
-                    {l:'Address',v:'1740 Fennell Street, Maitland, FL 32751'},
-                  ]},
-                  {name:'TLN / emPower Cruises',color:'#d4843e',items:[
-                    {l:'CLIA',v:'24632145'},{l:'Agency Phone',v:'314-523-5263'},
-                    {l:'Support Desk',v:'1-888-227-1122 (Mon–Fri 10am–7pm ET)'},
-                    {l:'Vendor Email',v:'vendor@empowertravel.net'},
-                    {l:'Support Email',v:'support@empowertravel.net'},
-                    {l:'Address',v:'PO Box 47248, Plymouth, MN 55447'},
-                  ]},
-                ];
-                return(
-                  <div style={{marginBottom:16}}>
-                    <button onClick={()=>setCredsOpen(v=>!v)} style={{display:'flex',alignItems:'center',gap:8,background:'transparent',border:'none',cursor:'pointer',padding:'6px 0',marginBottom:credsOpen?10:0}}>
-                      <span style={{fontSize:10,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',color:T.textSec}}>🔑 Agency Credentials</span>
-                      <span style={{fontSize:10,color:T.textSub}}>{credsOpen?'▲':'▼'}</span>
-                    </button>
-                    {credsOpen&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:8}}>
-                      {agencies.map((ag,i)=>(
-                        <div key={i} style={{background:T.white,border:'1px solid '+T.border,borderRadius:10,overflow:'hidden',boxShadow:'0 2px 8px rgba(27,45,58,0.05)'}}>
-                          <div style={{height:3,background:ag.color}}/>
-                          <div style={{padding:'10px 14px'}}>
-                            <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:ag.color,marginBottom:8}}>{ag.name}</div>
-                            {ag.items.map((item,j)=>(
-                              <div key={j} style={{display:'flex',gap:6,marginBottom:4,alignItems:'flex-start'}}>
-                                <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:T.textSub,flexShrink:0,marginTop:1,minWidth:60}}>{item.l}</span>
-                                <span style={{fontSize:11,color:T.text,lineHeight:1.4,fontFamily:'Courier New,monospace',wordBreak:'break-word'}}>{item.v}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>}
-                  </div>
-                );
-              })()}
+              {!searchQ.trim()&&<AgencyCredentials T={T}/>}
 
                             <div style={{display:searchQ.trim()?'none':'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:8}}>
                 {MODS.filter(m=>!m.external).filter(m=>!criticalOnly||active(m.id).some(i=>isUG(i,m)||isOD(i,m))).map(m=>{
