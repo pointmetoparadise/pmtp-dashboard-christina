@@ -1417,7 +1417,7 @@ function App(){
   if(!loaded)return<div style={{height:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:T.cream}}><div style={{textAlign:'center',color:T.textSec,fontSize:13,letterSpacing:'0.1em'}}>Loading…</div></div>;
   if(!session)return<AuthScreen onAuth={s=>setSession(s)}/>;
   return(
-    <div style={{height:'100vh',background:T.cream,display:'flex',flexDirection:'column',overflow:'hidden',zoom:zoom}}>
+    <div style={{height:'100vh',background:T.cream,display:'flex',flexDirection:'column',overflow:'hidden'}}>
       <div style={{height:72,flexShrink:0,background:'linear-gradient(135deg,'+T.navy+' 0%,'+T.navyMid+' 60%,'+T.navyLight+' 100%)',borderBottom:'2px solid '+T.tealDeep,boxShadow:'0 4px 24px rgba(27,45,58,0.35)',display:'flex',alignItems:'center',padding:'0 24px',position:'relative',zIndex:20}}>
         <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:'linear-gradient(90deg,transparent,'+T.tealDeep+','+T.teal+','+T.tealDeep+',transparent)'}}/>
         <button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',padding:'8px',marginRight:8,display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
@@ -1443,7 +1443,7 @@ function App(){
           <button onClick={async()=>{await sb.auth.signOut();setSession(null);setData(Object.fromEntries(MODS.map(m=>[m.id,[]])));}} style={{...btn,padding:'4px 10px',fontSize:9,background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.15)',color:T.textSub}}>Sign Out</button>
         </div>
       </div>
-      <div style={{display:'flex',flex:1,overflow:'hidden'}}>
+      <div style={{display:'flex',flex:1,overflow:'hidden',fontSize:(zoom*100)+'%'}}>
         <div className={'pmtp-overlay'+(sidebarOpen?' open':'')} onClick={()=>setSidebarOpen(false)}/>
         <div className={'pmtp-sidebar'+(sidebarOpen?' open':'')} style={{width:280,background:'linear-gradient(180deg,'+T.navyMid+' 0%,'+T.navy+' 100%)',borderRight:'1px solid rgba(201,168,76,0.12)',overflowY:'auto',flexShrink:0,paddingTop:10,paddingBottom:24}}>
           <button onClick={()=>{setView('home');setShowDone(false);setModSearch('');setSidebarOpen(false);}} style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%',padding:'11px 16px 11px 13px',background:view==='home'?'rgba(201,168,76,0.14)':'transparent',border:'none',borderLeft:view==='home'?'3px solid '+T.gold:'3px solid transparent',cursor:'pointer'}}>
