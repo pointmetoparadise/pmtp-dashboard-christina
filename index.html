@@ -268,7 +268,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{minHeight:'100vh',background:T.cream,display:'flex',alignItems:'center',justifyContent:'center'}}>
       <div style={{background:T.white,borderRadius:16,border:'1px solid '+T.border,boxShadow:'0 12px 56px rgba(27,45,58,0.14)',padding:'52px 48px',width:420,textAlign:'center'}}>
-        <div style={{width:56,height:3,background:'linear-gradient(90deg,'+T.gold+','+T.teal+')',borderRadius:2,margin:'0 auto 22px'}}/>
+        <div style={{width:56,height:3,background:'linear-gradient(90deg,'+T.tealDeep+','+T.teal+')',borderRadius:2,margin:'0 auto 22px'}}/>
         <div style={{fontSize:9.5,letterSpacing:'0.24em',color:T.textSec,textTransform:'uppercase',marginBottom:10}}>Point Me to Paradise Travel</div>
         <div style={{fontSize:26,fontWeight:700,color:T.navy,letterSpacing:'0.06em',marginBottom:6}}>Agent Dashboard</div>
         <div style={{width:32,height:2,background:T.gold,borderRadius:1,margin:'0 auto 28px'}}/>
@@ -302,7 +302,7 @@ function AddModal({modal,setModal,form,setForm,formErr,setFormErr,onSave}){
     <div onClick={e=>{if(e.target===e.currentTarget)close();}} className='pmtp-modal-wrap' style={{position:'fixed',inset:0,background:'rgba(27,45,58,0.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100,padding:16}}>
       <div className='pmtp-modal-inner' style={{background:T.white,borderRadius:14,width:'100%',maxWidth:500,maxHeight:'90vh',overflowY:'auto',boxShadow:'0 28px 80px rgba(27,45,58,0.3)'}}>
         <div style={{background:'linear-gradient(135deg,'+T.navy+','+T.navyMid+')',borderRadius:'14px 14px 0 0',padding:'18px 24px',borderBottom:'2px solid '+T.gold,position:'relative'}}>
-          <div style={{position:'absolute',top:0,left:0,right:0,height:2,borderRadius:'14px 14px 0 0',background:'linear-gradient(90deg,transparent,'+T.gold+','+T.goldLight+','+T.gold+',transparent)'}}/>
+          <div style={{position:'absolute',top:0,left:0,right:0,height:2,borderRadius:'14px 14px 0 0',background:'linear-gradient(90deg,transparent,'+T.tealDeep+','+T.teal+','+T.tealDeep+',transparent)'}}/>
           <div style={{fontSize:10,letterSpacing:'0.16em',color:T.goldLight,textTransform:'uppercase',marginBottom:4}}>{m.icon} {modal.item?'Edit':'New'} Entry</div>
           <div style={{fontSize:16,fontWeight:700,color:T.white,letterSpacing:'0.04em'}}>{m.label}</div>
         </div>
@@ -1195,8 +1195,8 @@ function App(){
   if(!session)return<AuthScreen onAuth={s=>setSession(s)}/>;
   return(
     <div style={{height:'100vh',background:T.cream,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div style={{height:72,flexShrink:0,background:'linear-gradient(135deg,'+T.navy+' 0%,'+T.navyMid+' 60%,'+T.navyLight+' 100%)',borderBottom:'2px solid '+T.gold,boxShadow:'0 4px 24px rgba(27,45,58,0.35)',display:'flex',alignItems:'center',padding:'0 24px',position:'relative',zIndex:20}}>
-        <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:'linear-gradient(90deg,transparent,'+T.gold+','+T.goldLight+','+T.gold+',transparent)'}}/>
+      <div style={{height:72,flexShrink:0,background:'linear-gradient(135deg,'+T.navy+' 0%,'+T.navyMid+' 60%,'+T.navyLight+' 100%)',borderBottom:'2px solid '+T.tealDeep,boxShadow:'0 4px 24px rgba(27,45,58,0.35)',display:'flex',alignItems:'center',padding:'0 24px',position:'relative',zIndex:20}}>
+        <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:'linear-gradient(90deg,transparent,'+T.tealDeep+','+T.teal+','+T.tealDeep+',transparent)'}}/>
         <button onClick={()=>setSidebarOpen(v=>!v)} style={{background:'none',border:'none',cursor:'pointer',padding:'8px',marginRight:8,display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
           <div style={{width:20,height:2,background:T.goldLight,borderRadius:1}}/><div style={{width:20,height:2,background:T.goldLight,borderRadius:1}}/><div style={{width:20,height:2,background:T.goldLight,borderRadius:1}}/>
         </button>
