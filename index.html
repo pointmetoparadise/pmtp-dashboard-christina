@@ -142,7 +142,7 @@ function createSB(url,key){
     },
     upsert:(body,opts={})=>dbReq('POST',table,[],[].concat(body),'resolution=merge-duplicates,return=representation'),
     update:(body)=>({eq:(c,v)=>dbReq('PATCH',table,[c+'=eq.'+encodeURIComponent(v)],body,'return=representation')}),
-    delete:()=>({eq:(c,v)=>dbReq('DELETE',table,[c+'=eq.'+encodeURIComponent(v)],null,'')}),
+    delete:()=>{let filters=[];const d={eq:(c,v)=>{filters.push(c+'=eq.'+encodeURIComponent(v));return d;},then:(res,rej)=>dbReq('DELETE',table,filters,null,'').then(res,rej)};return d;},
     insert:(body)=>dbReq('POST',table,[],[].concat(body),'return=representation'),
   });
   return{auth,from};
