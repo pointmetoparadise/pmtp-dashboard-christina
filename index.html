@@ -142,7 +142,7 @@ function createSB(url,key){
     },
     upsert:(body,opts={})=>dbReq('POST',table,[],[].concat(body),'resolution=merge-duplicates,return=representation'),
     update:(body)=>({eq:(c,v)=>dbReq('PATCH',table,[c+'=eq.'+encodeURIComponent(v)],body,'return=representation')}),
-    delete:()=>{let filters=[];const d={eq:(c,v)=>{filters.push(c+'=eq.'+encodeURIComponent(v));return d;},then:(res,rej)=>dbReq('DELETE',table,filters,null,'').then(res,rej)};return d;},
+    delete:()=>({eq:(c,v)=>dbReq('DELETE',table,[c+'=eq.'+encodeURIComponent(v)],null,'')}),
     insert:(body)=>dbReq('POST',table,[],[].concat(body),'return=representation'),
   });
   return{auth,from};
@@ -156,7 +156,6 @@ const btn={fontFamily:"'Georgia',serif",cursor:'pointer',textTransform:'uppercas
 /* ── Module config ── */
 const MODS=[
   {id:'hpTrips',nav:'High Priority Actions',label:'High Priority Trip Actions',short:'HP Trips',icon:'🚨',accent:T.red,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'trip',l:'Trip / Booking #',t:'text'},{k:'action',l:'Action Needed',t:'area',req:true},{k:'dueDate',l:'Due Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
-  {id:'hpFollowups',nav:'Time Sensitive Follow-Ups',label:'Time Sensitive Client Follow-Ups',short:'Time Sensitive',icon:'⚡',accent:T.orange,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'phone',l:'Phone',t:'text'},{k:'email',l:'Email',t:'text'},{k:'trip',l:'Trip / Booking #',t:'text'},{k:'reason',l:'Reason / Action Needed',t:'area',req:true},{k:'dueDate',l:'Follow-Up Date',t:'date',req:true},{k:'notes',l:'Notes',t:'area'}]},
   {id:'admin',nav:'Admin Tasks',label:'Admin Jobs',short:'Admin Jobs',icon:'✅',accent:T.green,fields:[{k:'task',l:'Task',t:'text',req:true},{k:'priority',l:'Priority',t:'select',opts:['High','Medium','Low']},{k:'dueDate',l:'Due Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
   {id:'agentRequests',nav:'Agent-Agent Requests',label:'Agent to Agent Requests',short:'Agent Requests',icon:'🤝',accent:'#9b59b6',fields:[ {k:'requestingAgent',l:'Requesting Agent',t:'text',req:true}, {k:'client',l:'Client Name',t:'text',req:true}, {k:'trip',l:'Trip / Booking #',t:'text'}, {k:'requestType',l:'Request Type',t:'select',opts:['Co-Work Trip','Quote Assistance','Booking Help','Client Coverage','Research Help','Other']}, {k:'details',l:'What They Need',t:'area',req:true}, {k:'dueDate',l:'Due Date',t:'date'}, {k:'commission',l:'Commission Split (if any)',t:'text'}, {k:'status',l:'Status',t:'select',opts:['New Request','In Progress','Waiting on Agent','Completed']}, {k:'notes',l:'Notes',t:'area'}, ]},
   {id:'calendar',nav:'Calendar / Agenda',label:'Calendar / Agenda',icon:'📅',accent:'#2e8b8b',fields:[]},
@@ -164,7 +163,6 @@ const MODS=[
   {id:'commissions',nav:'Commissions',label:'Commissions',icon:'💰',accent:'#c9a84c',fields:[]},
   {id:'components',nav:'Components Needed',label:'Trip Needs Components Added',short:'Components Needed',icon:'✈️',accent:T.tealLight,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'trip',l:'Trip',t:'text'},{k:'components',l:'Components Needed',t:'area',req:true},{k:'travelDate',l:'Travel Date',t:'date'},{k:'dueDate',l:'Booking Due Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
   {id:'finalPayments',nav:'Final Payments',label:'Final Payments Due',short:'Final Payments',icon:'💳',accent:T.gold,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'trip',l:'Trip / Booking #',t:'text'},{k:'supplier',l:'Supplier',t:'text'},{k:'amount',l:'Amount Due ($)',t:'text'},{k:'dueDate',l:'Payment Due Date',t:'date',req:true},{k:'notes',l:'Notes',t:'area'}]},
-  {id:'fitTracker',nav:'FIT Trip Tracker',label:'FIT Trip Tracker',icon:'📊',accent:'#27ae60',fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'destination',l:'Destination',t:'text',req:true},{k:'travelDate',l:'Departure Date',t:'date'},{k:'returnDate',l:'Return Date',t:'date'},{k:'fitSheetUrl',l:'FIT Sheet Link (client-specific)',t:'text'},{k:'notes',l:'Notes',t:'area'}]},
   {id:'hotelRequests',nav:'Hotel Requests',label:'Hotel Requests',short:'Hotel Requests',icon:'🏨',accent:'#e67e22',fields:[ {k:'client',l:'Client Name',t:'text',req:true}, {k:'hotel',l:'Hotel Name',t:'text',req:true}, {k:'destination',l:'Destination',t:'text'}, {k:'checkIn',l:'Check-In Date',t:'date'}, {k:'checkOut',l:'Check-Out Date',t:'date'}, {k:'roomType',l:'Room Type / Request',t:'text'}, {k:'guests',l:'Number of Guests',t:'text'}, {k:'status',l:'Status',t:'select',opts:['Request Sent','Request Acknowledged','Quote Received','Second Request Sent','Awaiting Approval','Request Approved','Booked','On Hold','Waitlisted','Declined','Cancelled']}, {k:'rate',l:'Rate / Total',t:'text'}, {k:'notes',l:'Special Requests / Notes',t:'area'}, ]},
   {id:'itineraries',nav:'Itineraries or Guides Needed',label:'Client Itinerary or Guides Needed',short:'Itineraries',icon:'📋',accent:T.goldLight,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'trip',l:'Trip',t:'text'},{k:'travelDate',l:'Travel Date',t:'date'},{k:'itinType',l:'Type (Custom / Supplier)',t:'text'},{k:'dueDate',l:'Itinerary Due Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
   {id:'newInquiries',nav:'New Inquiries',label:'New Inquiries',short:'New Inquiries',icon:'🆕',accent:'#7b68ee',fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'phone',l:'Phone',t:'text'},{k:'email',l:'Email',t:'text'},{k:'source',l:'Inquiry Source',t:'select',opts:['Website','Referral','Social Media','Repeat Client','Phone Call','Email','Other']},{k:'destination',l:'Destination / Interest',t:'text'},{k:'inquiryDate',l:'Date Client Reached Out',t:'date',req:true},{k:'dueDate',l:'Response Due Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
@@ -172,6 +170,7 @@ const MODS=[
   {id:'softFollowups',nav:'Soft Follow-Ups',label:'Soft Client Follow-Ups',short:'Soft Follow-Ups',icon:'💬',accent:T.teal,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'phone',l:'Phone',t:'text'},{k:'email',l:'Email',t:'text'},{k:'type',l:'Type',t:'select',opts:['Question About Booked Trip','Change Request','Proposal Pending','Awaiting Response','Nurturing Lead','Other']},{k:'trip',l:'Trip / Destination',t:'text'},{k:'need',l:'What They Need',t:'area',req:true},{k:'inquiryDate',l:'Date They Reached Out',t:'date'},{k:'lastContact',l:'Last Contact Date',t:'date'},{k:'dueDate',l:'Next Action Date',t:'date'},{k:'notes',l:'Notes',t:'area'}]},
   {id:'supplierInteractions',nav:'Supplier Interactions',label:'Supplier Interactions',icon:'📡',accent:'#8e44ad',fields:[ {k:'supplier',l:'Supplier Name',t:'text',req:true}, {k:'supplierType',l:'Supplier Type',t:'select',opts:['Hotel','Cruise Line','Tour Operator','DMC','Insurance','Transfer','Air','Other']}, {k:'bdm',l:'BDM Name',t:'text'}, {k:'bdmPhone',l:'BDM Phone',t:'text'}, {k:'bdmEmail',l:'BDM Email',t:'text'}, {k:'purpose',l:'Purpose',t:'select',opts:['Client Booking','Agency Business','Personal Business','BDM Relationship']}, {k:'client',l:'Client Name (if applicable)',t:'text'}, {k:'trip',l:'Trip / Booking # (if applicable)',t:'text'}, {k:'interactionType',l:'Interaction Type',t:'select',opts:['Quote Request','Follow-Up','Issue','Dispute','FAM Request','Contract','Override','Commission','General']}, {k:'subject',l:'Subject / What It\'s About',t:'area',req:true}, {k:'interactionDate',l:'Date of Interaction',t:'date'}, {k:'dueDate',l:'Response Due Date',t:'date'}, {k:'status',l:'Status',t:'select',opts:['Pending','In Progress','Waiting on Supplier','Resolved','Closed']}, {k:'notes',l:'Notes',t:'area'}, ]},
   {id:'vault',nav:'Password Vault',label:'Password Vault',icon:'🔐',accent:'#5a4a8a',fields:[]},
+  {id:'hpFollowups',nav:'Time Sensitive Follow-Ups',label:'Time Sensitive Client Follow-Ups',short:'Time Sensitive',icon:'⚡',accent:T.orange,fields:[{k:'client',l:'Client Name',t:'text',req:true},{k:'phone',l:'Phone',t:'text'},{k:'email',l:'Email',t:'text'},{k:'trip',l:'Trip / Booking #',t:'text'},{k:'reason',l:'Reason / Action Needed',t:'area',req:true},{k:'dueDate',l:'Follow-Up Date',t:'date',req:true},{k:'notes',l:'Notes',t:'area'}]},
   {id:'chat',nav:'Team Chat',label:'Team Chat',icon:'💬',accent:'#2e8b8b',fields:[]}
 ];
 
@@ -877,6 +876,7 @@ function QuickAccessBar(){
   const[open,setOpen]=React.useState(true);
   const LINKS=[
     {icon:'🚀',label:'Launchboard',url:'https://pmtp-launchboard.vercel.app/'},
+    {icon:'🏠',label:'PMTP Portal',url:'https://eliteparadiseplanners.com/communities/groups/pmtp-paradise-planners/private-group'},
     {icon:'🤖',label:'ChatGPT',url:'https://chatgpt.com/'},
     {icon:'🧠',label:'Claude AI',url:'https://claude.ai/new'},
     {icon:'🤝',label:'Co-Work Agreement',url:'https://drive.google.com/file/d/1D_3tBDe-oHSQYhq-kd6lk9lY2smHZmsI/copy'},
@@ -889,14 +889,13 @@ function QuickAccessBar(){
     {icon:'📊',label:'Montis Pro',url:'https://montis.pro/stream/'},
     {icon:'➕',label:'New Supplier',url:'https://docs.google.com/forms/d/e/1FAIpQLSewvOqT94wfQ7s-nVIdKT5TWRFRlcKSYs_78-IdidjxGto5NQ/viewform?usp=header'},
     {icon:'📖',label:'NotebookLM',url:'https://notebooklm.google.com/?pli=1'},
-    {icon:'🏠',label:'PMTP Portal',url:'https://eliteparadiseplanners.com/communities/groups/pmtp-paradise-planners/private-group'},
     {icon:'🌟',label:'Signature Travel',url:'https://www.signaturetravelnetwork.com/'},
     {icon:'🗂️',label:'Supplier Dir',url:'https://pmtp-supplier-directory.vercel.app/'},
     {icon:'🖊',label:'Supplier Reg',url:'https://docs.google.com/forms/d/e/1FAIpQLSdxTMUIRuOhTa0TeXp1CMvyZR3TMdT8BtXh9UJjHNkokMI0og/viewform?usp=header'},
     {icon:'🧳',label:'TPI Suitcase',url:'https://my.tpisuitcase.com/'},
     {icon:'🌴',label:'Travel Joy',url:'https://traveljoy.com/users/sign_in'},
     {icon:'🌐',label:'Travel Leaders',url:'https://agentprofiler.travelleaders.com/login.aspx?program=AU&redirectURL=%2fleaders-alliances%2fhmdwla'},
-  ];
+  ]
   return(
     <div style={{borderBottom:'1px solid #ede8df',background:'#faf7f2',flexShrink:0}}>
       <div onClick={()=>setOpen(v=>!v)} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 20px',cursor:'pointer',background:open?'#1b2d3a':'#faf7f2',transition:'background 0.2s'}}>
@@ -924,15 +923,8 @@ function FitTrackerView({session,sb,showToast,active,setModal,setForm,setFormErr
   const items=active('fitTracker');
   const T2={navy:'#1b2d3a',navyMid:'#243747',teal:'#2e8b8b',tealPale:'#e8f5f5',gold:'#c9a84c',goldLight:'#e2c97e',cream:'#faf7f2',white:'#ffffff',border:'#ede8df',textSec:'#5a7a8a',textSub:'#9ab0bb'};
   const btn2={fontFamily:"'Georgia',serif",cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em',fontWeight:700,borderRadius:6,border:'none',fontSize:11};
-  const filtered=items.filter(item=>{
-    if(!search.trim())return true;
-    const q=search.toLowerCase();
-    return[item.client,item.destination,item.notes].some(v=>v&&v.toLowerCase().includes(q));
-  });
-  function openSheet(url){
-    if(!url){showToast('No FIT sheet link added for this trip','err');return;}
-    window.open(url,'_blank');
-  }
+  const filtered=items.filter(item=>{if(!search.trim())return true;const q=search.toLowerCase();return[item.client,item.destination,item.notes].some(v=>v&&v.toLowerCase().includes(q));});
+  function openSheet(url){if(!url){showToast('No FIT sheet link added for this trip','err');return;}window.open(url,'_blank');}
   return(
     <div style={{padding:'24px 28px',overflowY:'auto',height:'100%'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
@@ -945,18 +937,13 @@ function FitTrackerView({session,sb,showToast,active,setModal,setForm,setFormErr
         </div>
         <button onClick={()=>{setModal({mid:'fitTracker',item:null});setForm({});setFormErr(false);}} style={{...btn2,padding:'9px 20px',fontSize:11,background:'linear-gradient(135deg,'+T2.navy+','+T2.navyMid+')',border:'1px solid '+T2.gold,color:T2.goldLight}}>+ Add FIT Trip</button>
       </div>
-      <div style={{background:T2.tealPale,border:'1px solid rgba(46,139,139,0.3)',borderRadius:8,padding:'10px 14px',marginBottom:16,fontSize:12,color:T2.teal,lineHeight:1.6}}>
-        Track each client's FIT trip and link directly to their custom FIT Google Sheet. Click <strong>📋 Open Sheet</strong> to jump straight to that client's trip sheet.
-      </div>
+      <div style={{background:T2.tealPale,border:'1px solid rgba(46,139,139,0.3)',borderRadius:8,padding:'10px 14px',marginBottom:16,fontSize:12,color:T2.teal,lineHeight:1.6}}>Track each client's FIT trip and link to their custom Google Sheet. Click <strong>📋 Open Sheet</strong> to jump straight to it.</div>
       <div style={{position:'relative',marginBottom:16,maxWidth:420}}>
         <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',fontSize:13,color:T2.textSub,pointerEvents:'none'}}>🔍</span>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search client, destination..." style={{width:'100%',padding:'8px 12px 8px 34px',border:'1.5px solid '+(search?T2.teal:T2.border),borderRadius:8,fontSize:12,color:T2.navy,background:T2.white,outline:'none',fontFamily:"'Georgia',serif"}}/>
         {search&&<button onClick={()=>setSearch('')} style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:13,color:T2.textSub}}>×</button>}
       </div>
-      {items.length===0&&<div style={{textAlign:'center',padding:'64px 0',color:T2.textSub}}>
-        <div style={{fontSize:34,marginBottom:14}}>📊</div>
-        <div style={{fontSize:13,letterSpacing:'0.1em'}}>No FIT trips yet — add your first client trip above.</div>
-      </div>}
+      {items.length===0&&<div style={{textAlign:'center',padding:'64px 0',color:T2.textSub}}><div style={{fontSize:34,marginBottom:14}}>📊</div><div style={{fontSize:13,letterSpacing:'0.1em'}}>No FIT trips yet — add your first client trip above.</div></div>}
       <div style={{display:'flex',flexDirection:'column',gap:10}}>
         {filtered.map(item=>(
           <div key={item.id} style={{background:T2.white,border:'1px solid '+T2.border,borderRadius:12,overflow:'hidden',boxShadow:'0 2px 10px rgba(27,45,58,0.06)'}}>
@@ -973,9 +960,7 @@ function FitTrackerView({session,sb,showToast,active,setModal,setForm,setFormErr
                   {item.notes&&<div style={{fontSize:12,color:T2.textSub,fontStyle:'italic',lineHeight:1.5}}>{item.notes}</div>}
                 </div>
                 <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'flex-end',flexShrink:0}}>
-                  <button onClick={()=>openSheet(item.fitSheetUrl)} style={{...btn2,padding:'7px 14px',fontSize:11,background:item.fitSheetUrl?'linear-gradient(135deg,#27ae60,#2e8b8b)':'#f5f3ef',border:'1px solid '+(item.fitSheetUrl?'#27ae60':T2.border),color:item.fitSheetUrl?T2.white:T2.textSub,display:'flex',alignItems:'center',gap:5}}>
-                    📋 {item.fitSheetUrl?'Open Sheet':'No Sheet Yet'}
-                  </button>
+                  <button onClick={()=>openSheet(item.fitSheetUrl)} style={{...btn2,padding:'7px 14px',fontSize:11,background:item.fitSheetUrl?'linear-gradient(135deg,#27ae60,#2e8b8b)':'#f5f3ef',border:'1px solid '+(item.fitSheetUrl?'#27ae60':T2.border),color:item.fitSheetUrl?T2.white:T2.textSub,display:'flex',alignItems:'center',gap:5}}>📋 {item.fitSheetUrl?'Open Sheet':'No Sheet Yet'}</button>
                   <div style={{display:'flex',gap:5}}>
                     <button onClick={()=>{setModal({mid:'fitTracker',item});setForm({...item});setFormErr(false);}} style={{...btn2,padding:'3px 9px',fontSize:9,background:'transparent',border:'1px solid '+T2.border,color:T2.textSec}}>Edit</button>
                     <button onClick={()=>setConfirm({msg:'Remove this FIT trip?',onConfirm:()=>deleteItem('fitTracker',item.id)})} style={{...btn2,padding:'3px 8px',fontSize:9,background:'transparent',border:'1px solid #fcc',color:'#c0392b'}}>✕</button>
@@ -1021,72 +1006,59 @@ function CommissionView({session,sb,showToast}){
     if(g>0&&p>0)return(g*(p/100)).toFixed(2);
     return'';
   }
-      async function savePay(){
+  async function savePay(){
     if(!payForm.amount){showToast('Enter a commission amount','err');return;}
     const newId=crypto.randomUUID();
-    const newPay={...payForm,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year),id:newId,created_at:new Date().toISOString()};
+    const newPay={...payForm,id:newId,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year),created_at:new Date().toISOString()};
     setManual(prev=>[newPay,...prev]);
     setShowAddPay(false);
     setPayForm({client:'',supplier:'',ref:'',paid_date:'',year:new Date().getFullYear(),amount:'',notes:''});
-    const sess=JSON.parse(localStorage.getItem('pmtp_s')||'null');
-    const tok=sess&&sess.access_token||window.PMTP.SUPABASE_KEY;
-    const res=await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/manual_payments',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=minimal'},body:JSON.stringify({...payForm,id:newId,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year)})});
-    if(!res.ok){showToast('Could not save payment','err');setManual(prev=>prev.filter(x=>x.id!==newId));return;}
+    const tok=(JSON.parse(localStorage.getItem('pmtp_s')||'null')||{}).access_token||window.PMTP.SUPABASE_KEY;
+    const r=await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/manual_payments',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=minimal'},body:JSON.stringify({...payForm,id:newId,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year)})});
+    if(!r.ok){showToast('Could not save payment','err');setManual(prev=>prev.filter(x=>x.id!==newId));return;}
     showToast('Payment saved!');
   }
   async function delPay(id){
     setManual(prev=>prev.filter(x=>x.id!==id));
-    const sess=JSON.parse(localStorage.getItem('pmtp_s')||'null');
-    const tok=sess&&sess.access_token||window.PMTP.SUPABASE_KEY;
+    const tok=(JSON.parse(localStorage.getItem('pmtp_s')||'null')||{}).access_token||window.PMTP.SUPABASE_KEY;
     await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/manual_payments?id=eq.'+id,{method:'DELETE',headers:{'apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok}});
-  }
-  async function moveToPending(p){
-    if(!window.confirm('Move this payment back to Pending?'))return;
-    // Optimistic UI — remove instantly
-    setManual(prev=>prev.filter(x=>x.id!==p.id));
-    const newPend={id:uid(),user_id:uid2,client:p.client||'',supplier:p.supplier||'',ref:p.ref||'',expected_amount:parseFloat(p.amount)||0,year:p.year||new Date().getFullYear(),notes:(p.notes||'')+' — moved from payments',status:'pending'};
-    setPending(prev=>[newPend,...prev]);
-    const{error}=await sb.from('pending_commissions').insert(newPend);
-    if(error){showToast('Could not move to pending','err');setManual(prev=>[p,...prev]);setPending(prev=>prev.filter(x=>x.id!==newPend.id));return;}
-    await sb.from('manual_payments').delete().eq('id',p.id).eq('user_id',uid2);
-    showToast('Moved back to pending!');
-  }
-  async function moveToPending(p){
-    if(!window.confirm('Move this payment back to Pending?'))return;
-    const{error}=await sb.from('pending_commissions').insert({user_id:uid2,client:p.client||'',supplier:p.supplier||'',ref:p.ref||'',expected_amount:parseFloat(p.amount)||0,year:p.year||new Date().getFullYear(),notes:(p.notes||'')+' — moved from payments',status:'pending'});
-    if(error){showToast('Could not move to pending','err');return;}
-    await sb.from('manual_payments').delete().eq('id',p.id).eq('user_id',uid2);
-    showToast('Moved back to pending!');loadData();
   }
   async function savePend(){
     const amt=pendForm.expected_amount||calcComm(pendForm);
     if(!amt){showToast('Enter or calculate an expected amount','err');return;}
-    const newPendId=crypto.randomUUID();
-    const newPendRec={...pendForm,user_id:uid2,id:newPendId,gross:parseFloat(pendForm.gross)||null,supplier_pct:parseFloat(pendForm.supplier_pct)||null,agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,expected_amount:parseFloat(amt),year:parseInt(pendForm.year),status:'pending',created_at:new Date().toISOString()};
-    setPending(prev=>[newPendRec,...prev]);
-    const sess2=JSON.parse(localStorage.getItem('pmtp_s')||'null');
-    const tok2=sess2&&sess2.access_token||window.PMTP.SUPABASE_KEY;
-    const pr=await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/pending_commissions',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok2,'Prefer':'return=minimal'},body:JSON.stringify({...pendForm,id:newPendId,user_id:uid2,gross:parseFloat(pendForm.gross)||null,supplier_pct:parseFloat(pendForm.supplier_pct)||null,agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,expected_amount:parseFloat(amt),year:parseInt(pendForm.year),status:'pending'})});
-    if(!pr.ok){showToast('Could not save','err');setPending(prev=>prev.filter(x=>x.id!==newPendId));return;}
-    if(error){showToast('Could not save','err');setPending(prev=>prev.filter(x=>x.id!==newPendId));return;}
-    showToast('Added to pending!');setShowAddPend(false);
+    const newId=crypto.randomUUID();
+    const newRec={...pendForm,id:newId,user_id:uid2,gross:parseFloat(pendForm.gross)||null,supplier_pct:parseFloat(pendForm.supplier_pct)||null,agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,expected_amount:parseFloat(amt),year:parseInt(pendForm.year),status:'pending',created_at:new Date().toISOString()};
+    setPending(prev=>[newRec,...prev]);
+    setShowAddPend(false);
     setPendForm({client:'',supplier:'',ref:'',gross:'',supplier_pct:'',agent_split_pct:'',expected_amount:'',expected_date:'',year:new Date().getFullYear(),notes:''});
+    const tok=(JSON.parse(localStorage.getItem('pmtp_s')||'null')||{}).access_token||window.PMTP.SUPABASE_KEY;
+    const r=await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/pending_commissions',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=minimal'},body:JSON.stringify({...pendForm,id:newId,user_id:uid2,gross:parseFloat(pendForm.gross)||null,supplier_pct:parseFloat(pendForm.supplier_pct)||null,agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,expected_amount:parseFloat(amt),year:parseInt(pendForm.year),status:'pending'})});
+    if(!r.ok){showToast('Could not save','err');setPending(prev=>prev.filter(x=>x.id!==newId));return;}
+    showToast('Added to pending!');
   }
   async function markReceived(p){
-    const tempId2='temp_'+Date.now();
-    const newPay={id:tempId2,user_id:uid2,client:p.client,supplier:p.supplier,ref:p.ref,paid_date:new Date().toLocaleDateString(),year:p.year,amount:p.expected_amount,notes:(p.notes||'')+' — moved from pending',created_at:new Date().toISOString()};
-    setPending(prev=>prev.map(x=>x.id===p.id?{...x,status:'received'}:x));
-    setManual(prev=>[newPay,...prev]);
-    await sb.from('pending_commissions').update({status:'received'}).eq('id',p.id).eq('user_id',uid2);
-    const payPayload={user_id:uid2,client:p.client,supplier:p.supplier,ref:p.ref,paid_date:new Date().toLocaleDateString(),year:p.year,amount:p.expected_amount,notes:(p.notes||'')+' — moved from pending'};
-    await sb.from('manual_payments').insert(payPayload);
+    const newId=crypto.randomUUID();
+    const tok=(JSON.parse(localStorage.getItem('pmtp_s')||'null')||{}).access_token||window.PMTP.SUPABASE_KEY;
+    setPending(prev=>prev.filter(x=>x.id!==p.id));
+    setManual(prev=>[{id:newId,user_id:uid2,client:p.client,supplier:p.supplier,ref:p.ref,paid_date:new Date().toLocaleDateString(),year:p.year,amount:p.expected_amount,notes:(p.notes||'')+' — moved from pending',created_at:new Date().toISOString()},...prev]);
+    await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/pending_commissions?id=eq.'+p.id,{method:'DELETE',headers:{'apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok}});
+    await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/manual_payments',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=minimal'},body:JSON.stringify({id:newId,user_id:uid2,client:p.client,supplier:p.supplier,ref:p.ref,paid_date:new Date().toLocaleDateString(),year:p.year,amount:p.expected_amount,notes:(p.notes||'')+' — moved from pending'})});
     showToast('Commission marked received!');
   }
-    async function delPend(id){
+  async function delPend(id){
     setPending(prev=>prev.filter(x=>x.id!==id));
-    const sess=JSON.parse(localStorage.getItem('pmtp_s')||'null');
-    const tok=sess&&sess.access_token||window.PMTP.SUPABASE_KEY;
+    const tok=(JSON.parse(localStorage.getItem('pmtp_s')||'null')||{}).access_token||window.PMTP.SUPABASE_KEY;
     await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/pending_commissions?id=eq.'+id,{method:'DELETE',headers:{'apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok}});
+  }
+  async function moveToPending(p){
+    if(!window.confirm('Move this payment back to Pending?'))return;
+    const newId=crypto.randomUUID();
+    const tok=(JSON.parse(localStorage.getItem('pmtp_s')||'null')||{}).access_token||window.PMTP.SUPABASE_KEY;
+    setManual(prev=>prev.filter(x=>x.id!==p.id));
+    setPending(prev=>[{id:newId,user_id:uid2,client:p.client||'',supplier:p.supplier||'',ref:p.ref||'',expected_amount:parseFloat(p.amount)||0,year:p.year||new Date().getFullYear(),notes:(p.notes||'')+' — moved from payments',status:'pending',created_at:new Date().toISOString()},...prev]);
+    await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/manual_payments?id=eq.'+p.id,{method:'DELETE',headers:{'apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok}});
+    await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/pending_commissions',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=minimal'},body:JSON.stringify({id:newId,user_id:uid2,client:p.client||'',supplier:p.supplier||'',ref:p.ref||'',expected_amount:parseFloat(p.amount)||0,year:p.year||new Date().getFullYear(),notes:(p.notes||'')+' — moved from payments',status:'pending'})});
+    showToast('Moved back to pending!');
   }
   function exportBackup(){
     const data={agentName:session.user.email,exportDate:new Date().toLocaleDateString(),manualPayments:manual,pendingCommissions:pending};
@@ -1216,10 +1188,7 @@ function CommissionView({session,sb,showToast}){
             <table style={{width:'100%',borderCollapse:'collapse',minWidth:500}}>
               <thead><tr>{['Client','Booking Ref','Supplier','Paid Date','Commission',''].map(h=>(<th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:h==='Commission'?'right':'left'}}>{h}</th>))}</tr></thead>
               <tbody>
-                {filtPay.map((p,i)=>(<tr key={i}><td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,fontFamily:'Courier New,monospace',borderBottom:'1px solid '+C.border}}>{p.ref||'—'}</td><td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.paid_date||'—'} <span style={{background:C.gray,color:C.muted,fontSize:9,padding:'1px 6px',borderRadius:10,border:'1px solid '+C.border}}>{p.year}</span></td><td style={{padding:'9px 12px',color:C.green,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.amount)}</td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><div style={{display:'flex',gap:5}}>
-                        <button onClick={()=>moveToPending(p)} style={{...secBtn,fontSize:10,padding:'3px 9px',color:'#d4843e',border:'1px solid rgba(212,132,62,0.4)'}}>→ Pending</button>
-                        <button onClick={()=>delPay(p.id)} style={delBtn}>✕</button>
-                      </div></td></tr>))}
+                {filtPay.map((p,i)=>(<tr key={i}><td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,fontFamily:'Courier New,monospace',borderBottom:'1px solid '+C.border}}>{p.ref||'—'}</td><td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.paid_date||'—'} <span style={{background:C.gray,color:C.muted,fontSize:9,padding:'1px 6px',borderRadius:10,border:'1px solid '+C.border}}>{p.year}</span></td><td style={{padding:'9px 12px',color:C.green,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.amount)}</td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><div style={{display:'flex',gap:5}}><button onClick={()=>moveToPending(p)} style={{...secBtn,fontSize:10,padding:'3px 9px',color:'#d4843e',border:'1px solid rgba(212,132,62,0.4)'}}>→ Pending</button><button onClick={()=>delPay(p.id)} style={delBtn}>✕</button></div></td></tr>))}
                 <tr style={{background:C.gray}}><td colSpan={4} style={{padding:'9px 12px',fontWeight:700,color:C.navy,fontFamily:'Georgia,serif',borderTop:'2px solid '+C.border}}>Total</td><td style={{padding:'9px 12px',fontWeight:700,color:C.navy,fontFamily:'Georgia,serif',textAlign:'right',borderTop:'2px solid '+C.border}}>{cur(filtTot)}</td><td style={{borderTop:'2px solid '+C.border}}/></tr>
               </tbody>
             </table>
@@ -1252,13 +1221,7 @@ function CommissionView({session,sb,showToast}){
               <tbody>{activePend.map((p,i)=>(<tr key={i}><td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td><td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,fontFamily:'Courier New,monospace',borderBottom:'1px solid '+C.border}}>{p.ref||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.expected_date||'—'}</td><td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.gross?cur(p.gross):'—'}</td><td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.supplier_pct?p.supplier_pct+'%':'—'}</td><td style={{padding:'9px 12px',color:C.muted,textAlign:'right',borderBottom:'1px solid '+C.border}}>{p.agent_split_pct?p.agent_split_pct+'%':'—'}</td><td style={{padding:'9px 12px',color:C.amber,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.expected_amount)}</td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:20,fontSize:10,fontFamily:'Georgia,serif',fontWeight:700,background:C.amberL,color:C.amber,border:'1px solid rgba(181,115,10,.25)'}}>Pending</span></td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><div style={{display:'flex',gap:6}}><button onClick={()=>markReceived(p)} style={greenBtn}>✓ Received</button><button onClick={()=>delPend(p.id)} style={delBtn}>✕</button></div></td></tr>))}</tbody>
             </table>
           </div></>}
-          {recPend.length>0&&<><div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:10,fontFamily:'Georgia,serif',marginTop:4}}>Previously Received</div>
-          <div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,overflow:'auto'}}>
-            <table style={{width:'100%',borderCollapse:'collapse',minWidth:400}}>
-              <thead><tr>{['Client','Supplier','Expected Date','Amount','Status',''].map(h=>(<th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:h==='Amount'?'right':'left'}}>{h}</th>))}</tr></thead>
-              <tbody>{recPend.map((p,i)=>(<tr key={i}><td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td><td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.expected_date||'—'}</td><td style={{padding:'9px 12px',color:C.green,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.expected_amount)}</td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:20,fontSize:10,fontFamily:'Georgia,serif',fontWeight:700,background:C.greenL,color:C.green,border:'1px solid rgba(42,122,80,.25)'}}>Received</span></td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><button onClick={()=>{setPending(prev=>prev.filter(x=>x.id!==p.id));fetch(window.PMTP.SUPABASE_URL+'/rest/v1/pending_commissions?id=eq.'+p.id,{method:'DELETE',headers:{'apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+window.PMTP.SUPABASE_KEY}});}} style={delBtn}>✕</button></td></tr>))}</tbody>
-            </table>
-          </div></>}
+          
         </>}
       </div>
     </div>
@@ -1478,7 +1441,7 @@ function App(){
   function moveItem(fromMid,toMid,item){
     const entry={...item,done:false,movedFrom:fromMid,movedAt:new Date().toISOString()};
     setData(prev=>({...prev,[fromMid]:prev[fromMid].filter(i=>i.id!==item.id),[toMid]:[...prev[toMid],entry]}));
-    const item_data={...entry};
+    const item_data={...entry};item_data.movedFrom=fromMid;item_data.movedAt=entry.movedAt;
     sb.from('dashboard_items').upsert({id:entry.id,user_id:session.user.id,module_id:toMid,item_data,done:false});
     const labels={newInquiries:'New Inquiries',softFollowups:'Soft Client Follow-Ups',hpFollowups:'Time Sensitive Follow-Ups',hpTrips:'High Priority Trip Actions',components:'Components Needed'};
     showToast('Moved to '+(labels[toMid]||toMid)+'.');
@@ -1539,8 +1502,8 @@ function App(){
           <div style={{height:1,background:'rgba(201,168,76,0.12)',margin:'6px 14px'}}/>
           {MODS.filter(m=>!m.external).map(m=>{
             const cnt=active(m.id).length,urg=active(m.id).filter(i=>isUG(i,m)||isOD(i,m)).length,isA=view===m.id;
-            const divBefore=(m.id==='admin'||m.id==='chat');
-            return<React.Fragment key={m.id}>{divBefore&&<div style={{height:'2px',background:'linear-gradient(90deg,transparent,#2e8b8b,#c9a84c,#2e8b8b,transparent)',margin:'8px 10px',borderRadius:'1px',opacity:0.7}}/>}<button onClick={()=>{if(m.external){window.open(m.external,'_blank');}else{setView(m.id);setShowDone(false);setModSearch('');}setSidebarOpen(false);}} style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%',padding:'10px 14px 10px 12px',background:isA?'rgba(201,168,76,0.14)':'transparent',border:'none',borderLeft:isA?'3px solid '+T.gold:'3px solid transparent',cursor:'pointer'}}>
+            const divBefore=(m.id==='admin'||m.id==='hpFollowups');
+            return<React.Fragment key={m.id}>{divBefore&&<div style={{height:'1px',background:'rgba(255,255,255,0.12)',margin:'5px 12px'}}/>}<button onClick={()=>{if(m.external){window.open(m.external,'_blank');}else{setView(m.id);setShowDone(false);setModSearch('');}setSidebarOpen(false);}} style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%',padding:'10px 14px 10px 12px',background:isA?'rgba(201,168,76,0.14)':'transparent',border:'none',borderLeft:isA?'3px solid '+T.gold:'3px solid transparent',cursor:'pointer'}}>
               <span style={{fontSize:11,letterSpacing:'0.06em',color:isA?T.goldLight:T.textSub,textTransform:'uppercase',fontWeight:700,textAlign:'left',lineHeight:1.45,fontFamily:"'Georgia',serif",whiteSpace:'normal',wordBreak:'break-word'}}>{m.icon}  {m.nav||m.label}</span>
               <div style={{display:'flex',gap:4,alignItems:'center'}}>
                 {urg>0&&<span style={{background:T.red,color:T.white,fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:8}}>!</span>}
@@ -1595,17 +1558,17 @@ function App(){
                   {!searchQ&&urgOpen>0&&<button onClick={()=>setCriticalOnly(v=>!v)} style={{fontFamily:"'Georgia',serif",cursor:'pointer',textTransform:'uppercase',letterSpacing:'0.1em',fontWeight:700,borderRadius:6,fontSize:11,padding:'10px 18px',background:criticalOnly?T.red:'transparent',border:'1px solid '+(criticalOnly?T.red:T.border),color:criticalOnly?T.white:T.textSec}}>{criticalOnly?'Showing Critical Only  x':'Show Critical Only'}</button>}
                 </div>
               </div>
-                            <div style={{marginBottom:16}}>
+              <div style={{marginBottom:16}}>
                 <button onClick={()=>setShowCreds(v=>!v)} style={{display:'flex',alignItems:'center',gap:8,background:'transparent',border:'none',cursor:'pointer',padding:'6px 0'}}>
                   <span style={{fontSize:10,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',color:T.textSec}}>🔑 Agency Credentials</span>
                   <span style={{fontSize:10,color:T.textSub}}>{showCreds?'▲':'▼'}</span>
                 </button>
-                {showCreds&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:8}}>
+                {showCreds&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:8,marginTop:10}}>
                   {[
                     {name:'PMTP',color:'#2e8b8b',items:[{l:'ARC',v:'45620153'},{l:'CLIA',v:'00046304'},{l:'Phone',v:'281-229-0862 · 281-229-0863 · 281-694-5514'},{l:'Address',v:'6 Barometer Close, Galveston, TX 77554'}]},
                     {name:'Legato',color:'#9b59b6',items:[{l:'ARC/IATA/CLIA',v:'06602105'},{l:'Phone',v:'719-413-4070'},{l:'Address',v:'1155 Kelly Johnson Blvd Suite 111, Unit 153, Colorado Springs, CO 80920'}]},
                     {name:'TPI',color:'#c0392b',items:[{l:'IATA',v:'10504292'},{l:'Phone',v:'407-331-2888'},{l:'Address',v:'1740 Fennell Street, Maitland, FL 32751'}]},
-                    {name:'TLN / emPower',color:'#d4843e',items:[{l:'CLIA',v:'24632145'},{l:'Phone',v:'314-523-5263'},{l:'Support',v:'1-888-227-1122 (Mon–Fri 10am–7pm ET)'},{l:'Vendor',v:'vendor@empowertravel.net'},{l:'Support',v:'support@empowertravel.net'},{l:'Address',v:'PO Box 47248, Plymouth, MN 55447'}]},
+                    {name:'TLN / emPower',color:'#d4843e',items:[{l:'CLIA',v:'24632145'},{l:'Phone',v:'314-523-5263'},{l:'Support',v:'1-888-227-1122 (Mon–Fri 10am–7pm ET)'},{l:'Vendor',v:'vendor@empowertravel.net'},{l:'Support Eml',v:'support@empowertravel.net'},{l:'Address',v:'PO Box 47248, Plymouth, MN 55447'}]},
                   ].map((ag,i)=>(
                     <div key={i} style={{background:T.white,border:'1px solid '+T.border,borderRadius:10,overflow:'hidden',boxShadow:'0 2px 8px rgba(27,45,58,0.05)'}}>
                       <div style={{height:3,background:ag.color}}/>
@@ -1613,7 +1576,7 @@ function App(){
                         <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:ag.color,marginBottom:8}}>{ag.name}</div>
                         {ag.items.map((item,j)=>(
                           <div key={j} style={{display:'flex',gap:6,marginBottom:4,alignItems:'flex-start'}}>
-                            <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:T.textSub,flexShrink:0,marginTop:1,minWidth:60}}>{item.l}</span>
+                            <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:T.textSub,flexShrink:0,marginTop:1,minWidth:65}}>{item.l}</span>
                             <span style={{fontSize:11,color:T.text,lineHeight:1.4,fontFamily:'Courier New,monospace',wordBreak:'break-word'}}>{item.v}</span>
                           </div>
                         ))}
@@ -1622,7 +1585,6 @@ function App(){
                   ))}
                 </div>}
               </div>
-
                             <div style={{display:searchQ.trim()?'none':'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:8}}>
                 {MODS.filter(m=>!m.external).filter(m=>!criticalOnly||active(m.id).some(i=>isUG(i,m)||isOD(i,m))).map(m=>{
                   const items=active(m.id),urg=items.filter(i=>isUG(i,m)||isOD(i,m));
