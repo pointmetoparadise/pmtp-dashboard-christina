@@ -1023,12 +1023,15 @@ function CommissionView({session,sb,showToast}){
   }
       async function savePay(){
     if(!payForm.amount){showToast('Enter a commission amount','err');return;}
-    const newPay={...payForm,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year),id:uid(),created_at:new Date().toISOString()};
+    const tempId='temp_'+Date.now();
+    const newPay={...payForm,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year),id:tempId,created_at:new Date().toISOString()};
     setManual(prev=>[newPay,...prev]);
     setShowAddPay(false);
     setPayForm({client:'',supplier:'',ref:'',paid_date:'',year:new Date().getFullYear(),amount:'',notes:''});
-    const{error}=await sb.from('manual_payments').insert(newPay);
-    if(error){showToast('Could not save payment','err');setManual(prev=>prev.filter(x=>x.id!==newPay.id));return;}
+    const payload={...payForm,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year)};
+    const{data,error}=await sb.from('manual_payments').insert(payload);
+    if(error){showToast('Could not save payment','err');setManual(prev=>prev.filter(x=>x.id!==tempId));return;}
+    if(data&&data[0])setManual(prev=>prev.map(x=>x.id===tempId?{...x,...data[0]}:x));
     showToast('Payment saved!');
   }
   async function delPay(id){
@@ -1059,17 +1062,22 @@ function CommissionView({session,sb,showToast}){
     const newPendId=uid();
     const newPendRec={...pendForm,user_id:uid2,id:newPendId,gross:parseFloat(pendForm.gross)||null,supplier_pct:parseFloat(pendForm.supplier_pct)||null,agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,expected_amount:parseFloat(amt),year:parseInt(pendForm.year),status:'pending',created_at:new Date().toISOString()};
     setPending(prev=>[newPendRec,...prev]);
-    const{error}=await sb.from('pending_commissions').insert(newPendRec);
+    const pendPayload={...pendForm,user_id:uid2,gross:parseFloat(pendForm.gross)||null,supplier_pct:parseFloat(pendForm.supplier_pct)||null,agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,expected_amount:parseFloat(amt),year:parseInt(pendForm.year),status:'pending'};
+    const{data:pd,error}=await sb.from('pending_commissions').insert(pendPayload);
+    if(!error&&pd&&pd[0])setPending(prev=>prev.map(x=>x.id===newPendId?{...x,...pd[0]}:x));
     if(error){showToast('Could not save','err');setPending(prev=>prev.filter(x=>x.id!==newPendId));return;}
     showToast('Added to pending!');setShowAddPend(false);
     setPendForm({client:'',supplier:'',ref:'',gross:'',supplier_pct:'',agent_split_pct:'',expected_amount:'',expected_date:'',year:new Date().getFullYear(),notes:''});
   }
   async function markReceived(p){
-    const newPay={id:uid(),user_id:uid2,client:p.client,supplier:p.supplier,ref:p.ref,paid_date:new Date().toLocaleDateString(),year:p.year,amount:p.expected_amount,notes:(p.notes||'')+' — moved from pending',created_at:new Date().toISOString()};
+    const tempId2='temp_'+Date.now();
+    const newPay={id:tempId2,user_id:uid2,client:p.client,supplier:p.supplier,ref:p.ref,paid_date:new Date().toLocaleDateString(),year:p.year,amount:p.expected_amount,notes:(p.notes||'')+' — moved from pending',created_at:new Date().toISOString()};
     setPending(prev=>prev.map(x=>x.id===p.id?{...x,status:'received'}:x));
     setManual(prev=>[newPay,...prev]);
     await sb.from('pending_commissions').update({status:'received'}).eq('id',p.id).eq('user_id',uid2);
-    await sb.from('manual_payments').insert(newPay);
+    const payPayload={user_id:uid2,client:p.client,supplier:p.supplier,ref:p.ref,paid_date:new Date().toLocaleDateString(),year:p.year,amount:p.expected_amount,notes:(p.notes||'')+' — moved from pending'};
+    const{data:rd}=await sb.from('manual_payments').insert(payPayload);
+    if(rd&&rd[0])setManual(prev=>prev.map(x=>x.id===tempId2?{...x,...rd[0]}:x));
     showToast('Commission marked received!');
   }
     async function delPend(id){
