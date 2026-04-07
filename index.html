@@ -1034,7 +1034,9 @@ function CommissionView({session,sb,showToast}){
   }
   async function delPay(id){
     setManual(prev=>prev.filter(x=>x.id!==id));
-    await sb.from('manual_payments').delete().eq('id',id).eq('user_id',uid2);
+    const sess=JSON.parse(localStorage.getItem('pmtp_s')||'null');
+    const tok=sess&&sess.access_token||window.PMTP.SUPABASE_KEY;
+    await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/manual_payments?id=eq.'+id,{method:'DELETE',headers:{'apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok}});
   }
   async function moveToPending(p){
     if(!window.confirm('Move this payment back to Pending?'))return;
@@ -1079,7 +1081,9 @@ function CommissionView({session,sb,showToast}){
   }
     async function delPend(id){
     setPending(prev=>prev.filter(x=>x.id!==id));
-    await sb.from('pending_commissions').delete().eq('id',id).eq('user_id',uid2);
+    const sess=JSON.parse(localStorage.getItem('pmtp_s')||'null');
+    const tok=sess&&sess.access_token||window.PMTP.SUPABASE_KEY;
+    await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/pending_commissions?id=eq.'+id,{method:'DELETE',headers:{'apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok}});
   }
   function exportBackup(){
     const data={agentName:session.user.email,exportDate:new Date().toLocaleDateString(),manualPayments:manual,pendingCommissions:pending};
