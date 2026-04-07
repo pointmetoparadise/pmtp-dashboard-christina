@@ -1135,6 +1135,7 @@ function CommissionView({session,sb,showToast}){
             <button onClick={()=>window.open(window.PMTP.RECONCILIATION_FORM,'_blank')} style={reconcileBtn}>
               📋 Request Reconciliation
             </button>
+            <button onClick={loadData} style={{...secBtn,fontSize:10,padding:'6px 12px'}}>↻ Refresh</button>
             <button onClick={exportBackup} style={{...secBtn,fontSize:10,padding:'6px 12px'}}>⬇ Back Up</button>
           </div>
         </div>
