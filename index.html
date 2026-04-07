@@ -1192,7 +1192,7 @@ function CommissionView({session,sb,showToast}){
         {tab==='payments'&&<>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
             <div style={{fontSize:13,fontWeight:700,color:C.navy,fontFamily:'Georgia,serif',textTransform:'uppercase',letterSpacing:'0.12em'}}>Payment Records</div>
-            <button onClick={()=>setShowAddPay(v=>!v)} style={priBtn}>+ Add Payment</button>
+            <button onClick={()=>setShowAddPay(v=>!v)} style={priBtn}>{showAddPay?'− Close':'+ Add Payment'}</button>
           </div>
           {showAddPay&&<div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,padding:20,marginBottom:20}}>
             <div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:14,fontFamily:'Georgia,serif'}}>Add New Payment</div>
@@ -1228,7 +1228,7 @@ function CommissionView({session,sb,showToast}){
         {tab==='pending'&&<>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
             <div style={{fontSize:13,fontWeight:700,color:C.navy,fontFamily:'Georgia,serif',textTransform:'uppercase',letterSpacing:'0.12em'}}>Pending Commissions</div>
-            <button onClick={()=>setShowAddPend(v=>!v)} style={priBtn}>+ Add Expected</button>
+            <button onClick={()=>setShowAddPend(v=>!v)} style={priBtn}>{showAddPend?'− Close':'+ Add Expected'}</button>
           </div>
           <div style={{background:'#e0f5f5',border:'1px solid rgba(46,139,139,.3)',borderRadius:10,padding:'12px 16px',color:C.teal,fontSize:13,marginBottom:16,lineHeight:1.7}}>
             Track commissions you are expecting but have not yet received. Click <strong>✓ Received</strong> once payment arrives — it will automatically move to your Payments history.
