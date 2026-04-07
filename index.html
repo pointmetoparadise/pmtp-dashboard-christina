@@ -1029,9 +1029,10 @@ function CommissionView({session,sb,showToast}){
     setShowAddPay(false);
     setPayForm({client:'',supplier:'',ref:'',paid_date:'',year:new Date().getFullYear(),amount:'',notes:''});
     const payload={...payForm,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year)};
-    const{data,error}=await sb.from('manual_payments').insert(payload);
-    if(error){showToast('Could not save payment','err');setManual(prev=>prev.filter(x=>x.id!==tempId));return;}
-    if(data&&data[0])setManual(prev=>prev.map(x=>x.id===tempId?{...x,...data[0]}:x));
+    try{
+      const res=await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/manual_payments',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+window.PMTP.SUPABASE_KEY,'Prefer':'return=minimal'},body:JSON.stringify(payload)});
+      if(!res.ok){const e=await res.text();showToast('Could not save payment','err');setManual(prev=>prev.filter(x=>x.id!==tempId));return;}
+    }catch(e){showToast('Could not save payment','err');setManual(prev=>prev.filter(x=>x.id!==tempId));return;}
     showToast('Payment saved!');
   }
   async function delPay(id){
@@ -1063,8 +1064,10 @@ function CommissionView({session,sb,showToast}){
     const newPendRec={...pendForm,user_id:uid2,id:newPendId,gross:parseFloat(pendForm.gross)||null,supplier_pct:parseFloat(pendForm.supplier_pct)||null,agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,expected_amount:parseFloat(amt),year:parseInt(pendForm.year),status:'pending',created_at:new Date().toISOString()};
     setPending(prev=>[newPendRec,...prev]);
     const pendPayload={...pendForm,user_id:uid2,gross:parseFloat(pendForm.gross)||null,supplier_pct:parseFloat(pendForm.supplier_pct)||null,agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,expected_amount:parseFloat(amt),year:parseInt(pendForm.year),status:'pending'};
-    const{data:pd,error}=await sb.from('pending_commissions').insert(pendPayload);
-    if(!error&&pd&&pd[0])setPending(prev=>prev.map(x=>x.id===newPendId?{...x,...pd[0]}:x));
+    try{
+      const pr=await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/pending_commissions',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+window.PMTP.SUPABASE_KEY,'Prefer':'return=minimal'},body:JSON.stringify(pendPayload)});
+      if(!pr.ok){showToast('Could not save','err');setPending(prev=>prev.filter(x=>x.id!==newPendId));return;}
+    }catch(e){showToast('Could not save','err');setPending(prev=>prev.filter(x=>x.id!==newPendId));return;}
     if(error){showToast('Could not save','err');setPending(prev=>prev.filter(x=>x.id!==newPendId));return;}
     showToast('Added to pending!');setShowAddPend(false);
     setPendForm({client:'',supplier:'',ref:'',gross:'',supplier_pct:'',agent_split_pct:'',expected_amount:'',expected_date:'',year:new Date().getFullYear(),notes:''});
@@ -1076,8 +1079,7 @@ function CommissionView({session,sb,showToast}){
     setManual(prev=>[newPay,...prev]);
     await sb.from('pending_commissions').update({status:'received'}).eq('id',p.id).eq('user_id',uid2);
     const payPayload={user_id:uid2,client:p.client,supplier:p.supplier,ref:p.ref,paid_date:new Date().toLocaleDateString(),year:p.year,amount:p.expected_amount,notes:(p.notes||'')+' — moved from pending'};
-    const{data:rd}=await sb.from('manual_payments').insert(payPayload);
-    if(rd&&rd[0])setManual(prev=>prev.map(x=>x.id===tempId2?{...x,...rd[0]}:x));
+    await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/manual_payments',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+window.PMTP.SUPABASE_KEY,'Prefer':'return=minimal'},body:JSON.stringify(payPayload)});
     showToast('Commission marked received!');
   }
     async function delPend(id){
@@ -1250,8 +1252,8 @@ function CommissionView({session,sb,showToast}){
           {recPend.length>0&&<><div style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:'uppercase',letterSpacing:'0.12em',marginBottom:10,fontFamily:'Georgia,serif',marginTop:4}}>Previously Received</div>
           <div style={{background:C.cream,border:'1px solid '+C.border,borderRadius:10,overflow:'auto'}}>
             <table style={{width:'100%',borderCollapse:'collapse',minWidth:400}}>
-              <thead><tr>{['Client','Supplier','Expected Date','Amount','Status'].map(h=>(<th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:h==='Amount'?'right':'left'}}>{h}</th>))}</tr></thead>
-              <tbody>{recPend.map((p,i)=>(<tr key={i}><td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td><td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.expected_date||'—'}</td><td style={{padding:'9px 12px',color:C.green,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.expected_amount)}</td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:20,fontSize:10,fontFamily:'Georgia,serif',fontWeight:700,background:C.greenL,color:C.green,border:'1px solid rgba(42,122,80,.25)'}}>Received</span></td></tr>))}</tbody>
+              <thead><tr>{['Client','Supplier','Expected Date','Amount','Status',''].map(h=>(<th key={h} style={{background:C.gray,padding:'8px 12px',fontSize:10,fontFamily:'Georgia,serif',color:C.muted,textTransform:'uppercase',letterSpacing:'0.07em',borderBottom:'1px solid '+C.border,textAlign:h==='Amount'?'right':'left'}}>{h}</th>))}</tr></thead>
+              <tbody>{recPend.map((p,i)=>(<tr key={i}><td style={{padding:'9px 12px',fontWeight:600,borderBottom:'1px solid '+C.border}}>{p.client||'—'}</td><td style={{padding:'9px 12px',color:C.muted,borderBottom:'1px solid '+C.border}}>{p.supplier||'—'}</td><td style={{padding:'9px 12px',color:C.muted,fontSize:11,borderBottom:'1px solid '+C.border}}>{p.expected_date||'—'}</td><td style={{padding:'9px 12px',color:C.green,fontWeight:700,textAlign:'right',borderBottom:'1px solid '+C.border}}>{cur(p.expected_amount)}</td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:20,fontSize:10,fontFamily:'Georgia,serif',fontWeight:700,background:C.greenL,color:C.green,border:'1px solid rgba(42,122,80,.25)'}}>Received</span></td><td style={{padding:'9px 12px',borderBottom:'1px solid '+C.border}}><button onClick={()=>{setPending(prev=>prev.filter(x=>x.id!==p.id));fetch(window.PMTP.SUPABASE_URL+'/rest/v1/pending_commissions?id=eq.'+p.id,{method:'DELETE',headers:{'apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+window.PMTP.SUPABASE_KEY}});}} style={delBtn}>✕</button></td></tr>))}</tbody>
             </table>
           </div></>}
         </>}
@@ -1352,58 +1354,6 @@ function CalendarView({active,MODS,highlightId,setHighlightId,isOD,isUG,daysTo,f
           {MODS.filter(m=>!m.external&&m.fields.length>0&&getDK(m)).map(m=>(<span key={m.id} style={{fontSize:10,padding:'2px 8px',borderRadius:4,background:modColor(m)+'22',color:modColor(m),border:'1px solid '+modColor(m)+'44',fontWeight:700}}>{m.icon} {m.nav}</span>))}
         </div>
       </div>
-    </div>
-  );
-}
-
-
-/* ── Agency Credentials ── */
-function AgencyCredentials({T}){
-  const[open,setOpen]=React.useState(false);
-  const agencies=[
-    {name:'PMTP',color:'#2e8b8b',items:[
-      {l:'ARC',v:'45620153'},{l:'CLIA',v:'00046304'},
-      {l:'Phone',v:'281-229-0862 · 281-229-0863 · 281-694-5514'},
-      {l:'Address',v:'6 Barometer Close, Galveston, TX 77554'},
-    ]},
-    {name:'Legato',color:'#9b59b6',items:[
-      {l:'ARC/IATA/CLIA',v:'06602105'},{l:'Phone',v:'719-413-4070'},
-      {l:'Address',v:'1155 Kelly Johnson Blvd Suite 111, Unit 153, Colorado Springs, CO 80920'},
-    ]},
-    {name:'TPI',color:'#c0392b',items:[
-      {l:'IATA',v:'10504292'},{l:'Phone',v:'407-331-2888'},
-      {l:'Address',v:'1740 Fennell Street, Maitland, FL 32751'},
-    ]},
-    {name:'TLN / emPower Cruises',color:'#d4843e',items:[
-      {l:'CLIA',v:'24632145'},{l:'Agency Phone',v:'314-523-5263'},
-      {l:'Support Desk',v:'1-888-227-1122 (Mon–Fri 10am–7pm ET)'},
-      {l:'Vendor Email',v:'vendor@empowertravel.net'},
-      {l:'Support Email',v:'support@empowertravel.net'},
-      {l:'Address',v:'PO Box 47248, Plymouth, MN 55447'},
-    ]},
-  ];
-  return(
-    <div style={{marginBottom:16}}>
-      <button onClick={()=>setOpen(v=>!v)} style={{display:'flex',alignItems:'center',gap:8,background:'transparent',border:'none',cursor:'pointer',padding:'6px 0',marginBottom:open?10:0}}>
-        <span style={{fontSize:10,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',color:T.textSec}}>🔑 Agency Credentials</span>
-        <span style={{fontSize:10,color:T.textSub}}>{open?'▲':'▼'}</span>
-      </button>
-      {open&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:8}}>
-        {agencies.map((ag,i)=>(
-          <div key={i} style={{background:T.white,border:'1px solid '+T.border,borderRadius:10,overflow:'hidden',boxShadow:'0 2px 8px rgba(27,45,58,0.05)'}}>
-            <div style={{height:3,background:ag.color}}/>
-            <div style={{padding:'10px 14px'}}>
-              <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:ag.color,marginBottom:8}}>{ag.name}</div>
-              {ag.items.map((item,j)=>(
-                <div key={j} style={{display:'flex',gap:6,marginBottom:4,alignItems:'flex-start'}}>
-                  <span style={{fontSize:9,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:T.textSub,flexShrink:0,marginTop:1,minWidth:60}}>{item.l}</span>
-                  <span style={{fontSize:11,color:T.text,lineHeight:1.4,fontFamily:'Courier New,monospace',wordBreak:'break-word'}}>{item.v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>}
     </div>
   );
 }
