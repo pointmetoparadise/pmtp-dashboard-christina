@@ -1023,13 +1023,15 @@ function CommissionView({session,sb,showToast}){
   }
       async function savePay(){
     if(!payForm.amount){showToast('Enter a commission amount','err');return;}
-    const tempId='temp_'+Date.now();
-    const newPay={...payForm,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year),id:tempId,created_at:new Date().toISOString()};
+    const newId=crypto.randomUUID();
+    const newPay={...payForm,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year),id:newId,created_at:new Date().toISOString()};
     setManual(prev=>[newPay,...prev]);
     setShowAddPay(false);
     setPayForm({client:'',supplier:'',ref:'',paid_date:'',year:new Date().getFullYear(),amount:'',notes:''});
-    const{error}=await sb.from('manual_payments').insert({...payForm,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year)});
-    if(error){showToast('Could not save payment','err');setManual(prev=>prev.filter(x=>x.id!==tempId));return;}
+    const sess=JSON.parse(localStorage.getItem('pmtp_s')||'null');
+    const tok=sess&&sess.access_token||window.PMTP.SUPABASE_KEY;
+    const res=await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/manual_payments',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok,'Prefer':'return=minimal'},body:JSON.stringify({...payForm,id:newId,user_id:uid2,amount:parseFloat(payForm.amount),year:parseInt(payForm.year)})});
+    if(!res.ok){showToast('Could not save payment','err');setManual(prev=>prev.filter(x=>x.id!==newId));return;}
     showToast('Payment saved!');
   }
   async function delPay(id){
@@ -1059,12 +1061,13 @@ function CommissionView({session,sb,showToast}){
   async function savePend(){
     const amt=pendForm.expected_amount||calcComm(pendForm);
     if(!amt){showToast('Enter or calculate an expected amount','err');return;}
-    const newPendId=uid();
+    const newPendId=crypto.randomUUID();
     const newPendRec={...pendForm,user_id:uid2,id:newPendId,gross:parseFloat(pendForm.gross)||null,supplier_pct:parseFloat(pendForm.supplier_pct)||null,agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,expected_amount:parseFloat(amt),year:parseInt(pendForm.year),status:'pending',created_at:new Date().toISOString()};
     setPending(prev=>[newPendRec,...prev]);
-    const pendPayload={...pendForm,user_id:uid2,gross:parseFloat(pendForm.gross)||null,supplier_pct:parseFloat(pendForm.supplier_pct)||null,agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,expected_amount:parseFloat(amt),year:parseInt(pendForm.year),status:'pending'};
-    const{error:pe}=await sb.from('pending_commissions').insert(pendPayload);
-    if(pe){showToast('Could not save','err');setPending(prev=>prev.filter(x=>x.id!==newPendId));return;}
+    const sess2=JSON.parse(localStorage.getItem('pmtp_s')||'null');
+    const tok2=sess2&&sess2.access_token||window.PMTP.SUPABASE_KEY;
+    const pr=await fetch(window.PMTP.SUPABASE_URL+'/rest/v1/pending_commissions',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.PMTP.SUPABASE_KEY,'Authorization':'Bearer '+tok2,'Prefer':'return=minimal'},body:JSON.stringify({...pendForm,id:newPendId,user_id:uid2,gross:parseFloat(pendForm.gross)||null,supplier_pct:parseFloat(pendForm.supplier_pct)||null,agent_split_pct:parseFloat(pendForm.agent_split_pct)||null,expected_amount:parseFloat(amt),year:parseInt(pendForm.year),status:'pending'})});
+    if(!pr.ok){showToast('Could not save','err');setPending(prev=>prev.filter(x=>x.id!==newPendId));return;}
     if(error){showToast('Could not save','err');setPending(prev=>prev.filter(x=>x.id!==newPendId));return;}
     showToast('Added to pending!');setShowAddPend(false);
     setPendForm({client:'',supplier:'',ref:'',gross:'',supplier_pct:'',agent_split_pct:'',expected_amount:'',expected_date:'',year:new Date().getFullYear(),notes:''});
